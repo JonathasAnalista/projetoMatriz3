@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulado: Primeiros Socorros 3</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .alternativa {
+      display: block;
+      width: 100%;
+      max-width: 600px;
+      margin: 10px auto;
+      padding: 15px 20px;
+      background-color: #f1f1f1;
+      color: #333;
+      font-size: 18px;
+      text-align: left;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .alternativa:hover {
+      background-color: #e0e0e0;
+      border-color: #999;
+    }
+    .alternativa.correta {
+      background-color: #c8e6c9 !important;
+      border-color: #2e7d32 !important;
+    }
+    .alternativa.errada {
+      background-color: #ffcdd2 !important;
+      border-color: #d32f2f !important;
+    }
+  </style>
+  <script src='/js/gate.js'></script>
+  <script> window.gateCheckAndRedirect(); </script>
+  <script src=" /js/track.js\></script>
+  <script src=" /js/track.js\></script>
+</head>
+<body onclick="habilitarAudios()" style="cursor: pointer;">
+  <div class="container">
+    <h1>Simulado: Primeiros Socorros 3</h1>
+    <div class="progress-container"><div id="progress-bar" class="progress-bar"></div></div>
+    <p id="timer">Tempo: 0m 0s</p>
+    <div id="quiz-container"></div>
+    <div id="result-container" class="hidden">
+      <h2>Simulado finalizado!</h2>
+      <p id="score"></p>
+      <p id="message"></p>
+      <button onclick="location.reload()">ðŸ” Refazer Prova</button>
+    </div>
+  </div>
+
+  <div id="form-box" style="display:none"></div>
+
+  <!-- Firebase compat scripts -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+
+  <!-- Inicializa Firebase -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDvvusp4oXSq10OQaYASY0x5nbITAL680c",
+      authDomain: "legmaster-firebase.firebaseapp.com",
+      projectId: "legmaster-firebase",
+      storageBucket: "legmaster-firebase.appspot.com",
+      messagingSenderId: "202888695536",
+      appId: "1:202888695536:web:3872f77a5e0dd1e1d0bc35",
+      measurementId: "G-893VBVSCH8"
+    };
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
+  <!-- Modal de ExplicaÃ§Ã£o -->
+<div id="modalExplicacao" class="modal" style="display: none;">
+  <div class="modal-content">
+    <button class="fechar" onclick="fecharExplicacao()">âŒ</button>
+
+    <p id="textoExplicacao"></p>
+  </div>
+</div>
+
+  <!-- Script do simulado -->
+  <script src="script.js"></script>
+</body>
+
+<script src="../voltar-simulados.js" defer></script>
+
+</html>
+
+
+
+

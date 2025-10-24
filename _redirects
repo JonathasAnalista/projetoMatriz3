@@ -1,0 +1,5 @@
+# SPA fallback (mantém rotas da sua aplicação sem 404)
+ /*    /index.html   200
+
+https://aproveidetran.com.br/* https://www.aproveidetran.com.br/:splat 301!
+/*    /index.html   200

@@ -1,0 +1,29 @@
+{
+  "defaultTenant": "legmaster",
+  "tenants": {
+    "legmaster": {
+      "label": "Legmaster",
+      "hosts": [
+        "legmaster.com.br",
+        "www.legmaster.com.br"
+      ],
+      "adminEnv": {
+        "projectId": "simuladoslegmasteroficial",
+        "clientEmail": "firebase-adminsdk-fbsvc@simuladoslegmasteroficial.iam.gserviceaccount.com",
+        "privateKey": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDQadEaIS8kMw8L\nfOMDNjYg6fsTHoTgnFh8u7UzgJ04DBVs7prwlldHipirBkTt6t4lRfqYMOgMDZdz\nAB0Xa2ikqom7nHtfbqF8PEkxNxUPeimgtcU10tM468FwERHKoFiizbSRgysGATyZ\n40J+tLiFDmPwTnl/PWZYUmcvWkcTtz1MtC+aaq2dUag0OIGGls0sA5ldieEdl+Wk\nqEjPK38MT9CnSuRR8yDNNFSDCy7f53pIzskTAgQE2zIWcTvU70iXAsS21nOrR+DG\nFTOrggFx38GPIeugYR0RN1WZDIp+p7TuuYAl9zzO0hP+1pSFB51G8EnEWaA5Oahn\nJVcIsDbxAgMBAAECggEAASYlMsn+K9qbdZBxIrVVve+WTJYfbMrV3s2s34Fg9IQ2\nCcdEu8jzZxvBsNcwcfiYlA9nRNenrtnUFPxqHKUBIx/E0b/IixeVvLTrISIk68R8\nVmRMJ5pfg13C37CbZtDknjSov0DgL8i51h4bca4CwqqINOTk3PWIYvok0x0x/T8D\nw6S9KhI6tdUMEdCdKGJOxLmBNzo3Enziz+EN8me7FkkPZtdsRBsU4o1/hRDmzcq2\ncijbOKPc1WyKfAMpFuNHJ9hmOhcjWIgW5G4qJ5rzIQ4UV/tuScvJYELDCd2zHrph\n4JH42ok+5RhrgBA6Oa53LnSp45yvehQ1qLIGDdbWwQKBgQDpWhVTxHfCwcuFuIjc\nntYetYIxOGV4lR1qmUZq8c1Fkf5dugxyeKwNKVx1ZpYlbA6A9nB1Amx7SCQ47sAg\n7b++QHFOBEnidwVkS6o+L8CgkuXDeQFiQnA3OQDnFc4/vONNU1Ww3g6vr8aoPH3I\nD85DdJgvVIhsn6iCur/+QSrnQQKBgQDkpBrEDrTayJDJtHWydRWNcv2eXDDREwZ3\n2GsoETr7ElNxIvNaZxdYoFbS40ycM8Ih7mJ8oWssg5cFhDqqH9Q+Ci91YFKaB3Jo\n+sxSPf7EBGzNMtlyqoq0IB574lPHdvi3hvMH0xBSbRHRiIdyDWDFcNqrwWC/kXbD\nWApNJDyTsQKBgDFivUzDMc1oEli0m1KF0y8gnvMnymHgvR8IXVzY2+azZTAU5fl8\nDH2kmUrHcVNuMQueHGLHJopY1EGwVb0iVAhBvzkRs0lYgy2czeTnWk8hh7r86wwO\nn40wZT6C4OmgYkLFNkd+V4FbJCIK21vx7GdeT68EpvLGP3WbbHK0/A2BAoGBAJ/0\ncslApKP+9tQ2DLU5lkdr8CSOyJQsJDVJ0cWpMEMgEgIvemJ/huS436UP4bPRvfnx\nBTO91fXBZbE1TblhJSH2DDeomIErvo3VD4Zl2ssVcWypK1k+GGVlpw3yS7xa7iuv\nHG0X6u5PYczeICvZUh8vEbxhQCclRBnriOFo/XwxAoGBAI+RIMrRVXft1xGyTHHf\nLDthhfPAeG2cBqBLHrFaOHyioPNxjdMfUrENhTxCjOVyIXv7B5P2c17u00iy3omN\nIkTINwHin2bEQGfjhz1UAs/ZBrwhscpwPFaluh41mUTs23gbWnepw0ujHbzTwecH\nA/rN6T0tpO62nK7ubz7XiJO/\n-----END PRIVATE KEY-----\n"
+      }
+    },
+    "cfcfoch": {
+      "label": "cfc-foch",
+      "hosts": [
+        "www.simuladostransitar.com.br", 
+        "simuladostransitar.com.br"
+      ],
+      "adminEnv": {
+        "projectId": "cfcfoch",
+        "clientEmail": "firebase-adminsdk-fbsvc@cfcfoch.iam.gserviceaccount.com",
+        "privateKey": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDzS2IBZLf2axia\nEknIu/qHET6Fl64pmHT5BYP5RtThdgFXAlhVXXmnUxFNQ7w6D1QQ2Ax+opbnJrxx\nJio3rJSy6E/e6ItHopgzpoaBUNUXYftGnQwOS9DQ+XU1E5r1svoOCdD37yCdu5td\nLGGM0Dg/33kSBEvqC8P/kR/vWqM3aV0spm0ChE+uRf/GUFm/1r93JnRXN7J7O1cP\nq/TFtBcBiV/E6G2Tvkl90Ccuyjwu8oYXGxu5fVnkjha+w4dXBuFAAgpIabxW0wka\nca2yk7YupeILPrpGLSi7dD2dCrutFnM1UfDKlvAwX2Ph/y88OPBS+coOTaO5/4V5\nDROwAhg5AgMBAAECggEAFa3hVTFA+NlA/1s8oRsQnBm1eFJnkSQZQ3NYkWbcloNd\nMGajsZk7VOVtaw6FGdtYNb2hGph18xg1iuBh7kVKy5WXc5jfIfDJuGVQ72CUWTNA\nhvtJiFPJjxJOsMsT1mvIJZlKuj0TRMFJ4W4p+lIEVFS43ua5HDYUlS2JkSeCpO/Q\ntnh231q4QymHTCct+4s7wjte9SQQuRs5Nq85Ccl+7bsBG3aDhnmf2OVj3Zx7YG9/\nflV1EyOQJumLxkO6JKzvWNjB//AuiiwGkrVPsAP7tV1UTvnM0zR13FuzeXqVxZRu\nahJ+bgQIYV8XaoHcZ4gb2iOafmIJTq9jCjODQ3CybQKBgQD97J3NjN1Y+EkGzddm\nDOge2FD+zhFuNzV8WGS9fuTrZxWOeiyxyD7zkvX9TSkZp/kX6Lt4DbiXyVU2GYgh\nk8wbywBB/fzzhtxfACpynNZSlrcx0yVcbw0J+MadBOpVB09yY5oLxgRtzmwRRUCe\ni4i8Van0myWZaz2yBt+p8mecMwKBgQD1SIWEcAPc02u6kbt/4DlUhC8WxcQ1gKtj\nBu/5hLgLqZaCMrNubEJTlrfm9aXTct4LSICu8i/W7Pg/wQUya6O74kMSRBq8Rudn\nHRkAF5Ys+YeZCJDticaIIGUXzkfDtN/t4sQn35jrIHji3N2vRXLv4c5WZtUdL/Y5\nLwefY/wN4wKBgGb5GrFty6G15l91AEHpQASqMoZyaM0qZG1Np2TVXd48ypgh4Zgj\nHaxHT6xuKxm1baWNguDXp6EeS4kJ55O+TQqEU1Fvv7G+YgXAmnYqNhv99MKm3sLS\nYhZGJb0tbh4XPdeknqbhoZAqItcKH39sFIJTtv10IVZLEBTvBqrzm6LTAoGBAJTs\nrlxl4oJ+P2dsukn+6vAcvbZ25xWRBP5AJQ37ff9evUpZ3EXMJ003MnthZIiIsrZp\nE/CkjVVSVbvnxu8BGc2mqBB8Fzt/VVpu+VHsADtYWfMZl10SDN9zw817amkx9dAq\noeyPvvnrolojvdmAMjPhhvVAxF5PU5EOs/Mbstr/AoGBAJc1Ayf/uhNxFVKO+dL2\nY7H7b8fu9vOryL2dK8AUfDIx3mKn+0oS55+TA9h752F97Ee2vNpPCV/Sd25KavoF\nPdF6i00kyLGPB13bXM9Q+HdS+FIn2E7usNZWnOZitdt2ghwKYsdZHLO4UuKQrili\nZGmM+RZ+KMyNY+QcQujqPJDR\n-----END PRIVATE KEY-----\n"
+      }
+    }
+  }
+}

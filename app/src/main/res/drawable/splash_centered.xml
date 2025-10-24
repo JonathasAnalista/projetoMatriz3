@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background color (uses TWA backgroundColor resource) -->
+    <item android:drawable="@color/backgroundColor" />
+    <!-- Centered app mark; uses notification icon to avoid cropping -->
+    <item>
+        <bitmap
+            android:src="@drawable/ic_notification_icon"
+            android:gravity="center"
+            android:antialias="true"
+            android:filter="true" />
+    </item>
+</layer-list>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://cdn.botpress.cloud/webchat/v3.3/inject.js"></script>
+  <script src="https://files.bpcontent.cloud/2025/10/24/02/20251024020543-K6OWTR8A.js" defer></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <title>Simulados Detran</title>
+  <link rel="stylesheet" href="style.css?v=70.70.77" />
+  <!-- Fonte moderna para tipografia consistente -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#2E7D32">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./logo_nova.png" type="image/png">
+  <!-- iOS PWA meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Legmaster">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+
+
+
+  <script>
+    // Versão atual da plataforma
+    const VERSAO_ATUAL = "70.70.77" // Sempre atualize isso quando houver uma nova versão
+
+    // Verifica se já foi avisado sobre esta versão
+    const versaoSalva = localStorage.getItem("versao_detran");
+
+    if (versaoSalva !== VERSAO_ATUAL) {
+      localStorage.setItem("versao_detran", VERSAO_ATUAL);
+
+      // Exibe alerta de atualização para o usuário
+      alert("🚀 Plataforma atualizada para a versão 70.70.77!\n\nNovidades:\n• Novos simulados disponíveis\n• Correções de bugs\n• Melhor desempenho\n\nRecarregando com as novidades...");
+
+      // Recarrega para aplicar atualizações
+      location.reload();
+    }
+  </script>
+
+
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-JRMEXEF83Z"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-JRMEXEF83Z');
+  </script>
+
+</head>
+
+<body>
+  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Alternar tema">
+    <span class="theme-toggle__icon" aria-hidden="true"></span>
+  </button>
+
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true">
+    <div id="alerta-login" class="toast" role="status" aria-live="assertive" aria-atomic="true">
+      <span id="mensagem-alerta-login"></span>
+      <button type="button" class="toast-close" aria-label="Fechar alerta"
+        onclick="fecharToast('alerta-login')">&times;</button>
+    </div>
+  </div>
+
+  <div id="custom-alert" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="alertdialog" aria-labelledby="alert-title" aria-describedby="alert-message">
+      <header class="modal-header">
+        <h3 id="alert-title" class="modal-title">Simulados Detran</h3>
+        <button type="button" class="modal-close" aria-label="Fechar aviso" onclick="fecharAlerta()">&times;</button>
+      </header>
+      <div class="modal-content">
+        <p id="alert-message" class="modal-message"></p>
+      </div>
+      <footer class="modal-actions">
+        <button type="button" class="btn btn-primary" onclick="fecharAlerta()">Entendi</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="auth-card" id="form-box"></div>
+
+  <script>
+    // Tema claro/escuro simples (persistido em localStorage)
+    (function () {
+      const STORAGE_KEY = 'ui_theme';
+      const body = document.body;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved === 'dark') body.setAttribute('data-theme', 'dark');
+      } catch { }
+      const btn = document.getElementById('theme-toggle');
+      btn && btn.addEventListener('click', function () {
+        const isDark = body.getAttribute('data-theme') === 'dark';
+        if (isDark) { body.removeAttribute('data-theme'); try { localStorage.setItem(STORAGE_KEY, 'light'); } catch { } }
+        else { body.setAttribute('data-theme', 'dark'); try { localStorage.setItem(STORAGE_KEY, 'dark'); } catch { } }
+      });
+    })();
+  </script>
+
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("usuarioLogado") || "null");
+    const userId = user?.email || null;
+    if (typeof gtag === 'function') {
+      gtag('config', 'G-4MCS21GQ7C', { user_id: userId });
+    }
+  </script>
+
+
+  <div id="alerta-login" style="
+  display:none;
+  position:fixed;
+  top:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#fff;
+  color:#d32f2f;
+  border:2px solid #f44336;
+  border-radius:12px;
+  padding:20px;
+  font-size:18px;
+  box-shadow:0 6px 12px rgba(0,0,0,0.3);
+  z-index:1000;
+  max-width: 400px;
+  text-align: center;">
+    <span id="mensagem-alerta-login"></span>
+  </div>
+
+  <!-- Firebase (CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <script src="/js/tenant.js"></script>
+  <!-- Legmaster config e init do Firebase -->
+  <script src="/js/config.js"></script>
+  <script src="/js/firebase.js" defer></script>
+
+  <!-- Simulado script -->
+  <script src="script.js?v=70.70.77" defer></script> <!-- script.js do simulado -->
+
+
+
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').then(reg => {
+        console.log("✅ Service Worker registrado");
+
+        // Quando uma nova versão for detectada
+        reg.onupdatefound = () => {
+          const newSW = reg.installing;
+          newSW.onstatechange = () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log("⚠️ Nova versão detectada. Atualizando...");
+
+              // Envia mensagem para ativar imediatamente
+              newSW.postMessage({ type: 'SKIP_WAITING' });
+            }
+          };
+        };
+
+        // Quando o novo SW for ativado, recarrega a página uma única vez
+        let refreshed = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (refreshed) return;
+          refreshed = true;
+          console.log("🔁 Recarregando com nova versão...");
+          window.location.reload();
+        });
+        // Verificação periódica por atualizações do SW (30min), somente quando visível
+        const CHECK_MS = 30 * 60 * 1000;
+        const safeUpdate = async () => { try { if (navigator.onLine) await reg.update(); } catch { } };
+        setInterval(() => { if (document.visibilityState === 'visible') safeUpdate(); }, CHECK_MS);
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') safeUpdate(); });
+        window.addEventListener('focus', safeUpdate);
+      });
+    }
+  </script>
+
+
+  <script>
+    // Funções auxiliares para o alerta customizado
+    function fecharAlerta() {
+      const el = document.getElementById('custom-alert');
+      if (el) el.style.display = 'none';
+    }
+    function mostrarAlerta(mensagem) {
+      const box = document.getElementById('custom-alert');
+      const msg = document.getElementById('alert-message');
+      if (box && msg) { msg.textContent = mensagem; box.style.display = 'flex'; }
+    }
+  </script>
+  <script>
+    // PWA Install (Android + iOS guidance)
+    (function () {
+      const LS_DISMISS_KEY = 'pwa_install_dismiss_until';
+      const DISMISS_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
+      let deferredPrompt = null;
+
+      function now() { return Date.now(); }
+      function dismissedUntil() { try { return parseInt(localStorage.getItem(LS_DISMISS_KEY) || '0', 10) || 0; } catch { return 0; } }
+      function setDismiss() { try { localStorage.setItem(LS_DISMISS_KEY, String(now() + DISMISS_MS)); } catch { } }
+      function isStandalone() { return window.matchMedia && window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+      function isIOS() { const ua = navigator.userAgent || navigator.vendor || window.opera || ''; return /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && 'ontouchend' in document); }
+      function isSafari() { const ua = navigator.userAgent || ''; return /safari/i.test(ua) && !/crios|fxios|chrome/i.test(ua); }
+
+      function ensureStyle() {
+        if (document.getElementById('pwa-style')) return;
+        const style = document.createElement('style');
+        style.id = 'pwa-style';
+        style.textContent = `
+      #pwa-banner{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9998;width:min(560px,92vw)}
+      .pwa-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.22);padding:14px 14px 12px}
+      .pwa-row{display:flex;gap:12px;align-items:flex-start}
+        .pwa-icon{width:44px;height:44px;border-radius:10px;overflow:hidden;flex:0 0 auto;border:1px solid #e5e7eb;background:#fff}
+        .pwa-icon img{width:100%;height:100%;display:block;object-fit:contain}
+      .pwa-body{flex:1 1 auto}
+      .pwa-title{margin:0;color:#14532d;font-weight:900;font-size:16px;line-height:1.2}
+      .pwa-sub{margin:4px 0 0 0;color:#475569;font-size:13.5px;line-height:1.4}
+      .pwa-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+      .pwa-btn{border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}
+      .pwa-primary{background:linear-gradient(180deg,#2E7D32 0%,#256F2C 100%);color:#fff;border:1px solid #1e5f25;box-shadow:0 6px 14px rgba(46,125,50,.28),0 2px 4px rgba(0,0,0,.06)}
+      .pwa-secondary{background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0}
+      @media (max-width:420px){ .pwa-actions{flex-direction:column} .pwa-actions .pwa-btn{width:100%} }
+    `;
+        document.head.appendChild(style);
+      }
+
+      function hideBanner() { const el = document.getElementById('pwa-banner'); if (el) el.remove(); }
+      function showBannerAndroid() {
+        ensureStyle(); hideBanner();
+        const c = document.createElement('div'); c.id = 'pwa-banner';
+        c.innerHTML = `
+      <div class="pwa-card" role="dialog" aria-label="Instalar aplicativo">
+        <div class="pwa-row">
+          <div class="pwa-icon"><img src="/icons/logo_nova.png" alt=""></div>
+          <div class="pwa-body">
+            <h3 class="pwa-title">Instalar o app Simulados Detran</h3>
+            <p class="pwa-sub">Acesso rápido, melhor experiência dos simulados.</p>
+            <div class="pwa-actions">
+              <button id="pwa-dismiss" class="pwa-btn pwa-secondary">Não agora</button>
+              <button id="pwa-install" class="pwa-btn pwa-primary">Instalar</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+        document.body.appendChild(c);
+        c.querySelector('#pwa-dismiss').onclick = () => { setDismiss(); hideBanner(); };
+        c.querySelector('#pwa-install').onclick = async () => {
+          try {
+            if (!deferredPrompt) { hideBanner(); return; }
+            deferredPrompt.prompt();
+            const choice = await deferredPrompt.userChoice;
+            if (choice && choice.outcome !== 'accepted') setDismiss();
+          } finally { hideBanner(); deferredPrompt = null; }
+        };
+      }
+      function showBannerIOS() {
+        ensureStyle(); hideBanner();
+        if (!isSafari()) return; // instrução focada no Safari
+        const c = document.createElement('div'); c.id = 'pwa-banner';
+        c.innerHTML = `
+      <div class="pwa-card" role="dialog" aria-label="Adicionar à Tela de Início">
+        <div class="pwa-row">
+          <div class="pwa-icon"><img src="/icons/icon-192.png" alt=""></div>
+          <div class="pwa-body">
+            <h3 class="pwa-title">Adicionar o app à Tela de Início</h3>
+            <p class="pwa-sub">No Safari, toque em Compartilhar e depois em "Adicionar à Tela de Início".</p>
+            <div class="pwa-actions">
+              <button id="pwa-ok" class="pwa-btn pwa-primary">Ok, entendi</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+        document.body.appendChild(c);
+        c.querySelector('#pwa-ok').onclick = () => { setDismiss(); hideBanner(); };
+      }
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        if (isStandalone()) return; // já instalado
+        if (dismissedUntil() > now()) return;
+        e.preventDefault();
+        deferredPrompt = e;
+        showBannerAndroid();
+      });
+      window.addEventListener('appinstalled', () => { hideBanner(); try { localStorage.removeItem(LS_DISMISS_KEY); } catch { } });
+
+      // iOS não dispara beforeinstallprompt
+      document.addEventListener('DOMContentLoaded', () => {
+        if (isStandalone()) return;
+        if (dismissedUntil() > now()) return;
+        if (isIOS()) setTimeout(showBannerIOS, 1500);
+      });
+    })();
+  </script>
+
+  <!-- no final do <body> botpress inicio -->
+<style>
+  html, body { height: 100%; }
+  body { overscroll-behavior: contain; }
+  /* wrapper full-screen pro chat */
+  #bp-wrapper{ position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; }
+  #bp-wrapper iframe{ pointer-events: auto; }
+
+  /* iframe ocupa largura total; altura a gente controla via JS */
+  #bp-wrapper iframe[src*="webchat"]{
+    position: fixed !important;
+    left: 0;
+    width: 100%;
+    bottom: var(--kb, 0px); /* desloca pelo teclado */
+    height: 100vh;         /* fallback */
+    max-height: 100vh;
+    border: 0;
+  }
+  @supports (height: 100dvh){
+    #bp-wrapper iframe[src*="webchat"]{ height: 100dvh; }
+  }
+</style>
+
+<div id="bp-wrapper" aria-hidden="false"></div>
+
+<!-- Botpress v3.3 (seus scripts) -->
+<script src="https://cdn.botpress.cloud/webchat/v3.3/inject.js"></script>
+<script src="https://files.bpcontent.cloud/2025/10/24/02/20251024020543-K6OWTR8A.js" defer></script>
+
+<!-- FIX definitivo: calcula altura do teclado e empurra o chat pra cima -->
+<script>
+(function botpressKeyboardHardFix(){
+  const q = () =>
+    document.querySelector('#bp-wrapper iframe[src*="webchat"], iframe[src^="https://cdn.botpress.cloud/webchat/"]');
+
+  function mountIntoWrapper() {
+    const f = q();
+    const wrap = document.getElementById('bp-wrapper');
+    if (f && wrap && f.parentElement !== wrap) wrap.appendChild(f);
+  }
+
+  function applyBottomOffset(){
+    const f = q();
+    if (!f) return;
+
+    const vv = window.visualViewport;
+    // altura do teclado = (altura da viewport lógica que foi “comida”)
+    const kb = vv ? (window.innerHeight - vv.height - vv.offsetTop) : 0;
+
+    // limita a zero se negativo
+    const safeKb = Math.max(0, Math.round(kb));
+
+    // passa via CSS var (CSS controla "bottom")
+    document.documentElement.style.setProperty('--kb', safeKb + 'px');
+
+    // segurança extra: se teclado MUITO alto, garante que o input não fique escondido
+    if (safeKb > 0) {
+      // tenta garantir foco visível (alguns browsers só respeitam com scroll)
+      setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 0);
+    }
+  }
+
+  // observa o DOM até o iframe aparecer
+  const obs = new MutationObserver(() => { mountIntoWrapper(); applyBottomOffset(); });
+  obs.observe(document.documentElement, { childList: true, subtree: true });
+
+  // eventos que disparam quando o teclado abre/fecha/rotaciona
+  ['resize','orientationchange'].forEach(ev =>
+    window.addEventListener(ev, applyBottomOffset, { passive: true })
+  );
+  if (window.visualViewport){
+    visualViewport.addEventListener('resize', applyBottomOffset, { passive: true });
+    visualViewport.addEventListener('scroll',  applyBottomOffset, { passive: true });
+  }
+
+  // alguns posts do Botpress → reaplica ajuste
+  window.addEventListener('message', (e) => {
+    if (typeof e.data === 'string' && e.data.includes('bp:')) applyBottomOffset();
+  });
+
+  // primeira passada (poll curto até existir)
+  const tick = setInterval(() => {
+    if (q()) { clearInterval(tick); mountIntoWrapper(); applyBottomOffset(); }
+  }, 100);
+})();
+</script>
+<!-- Fim botpress -->
+
+</body>
+
+</html>

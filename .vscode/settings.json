@@ -1,0 +1,13 @@
+{
+  "java.configuration.updateBuildConfiguration": "interactive",
+
+  // Desativa a confirmação no ChatGPT Codex
+  "chatgpt.confirmCommand": false,
+
+  // Desativa a confirmação no Copilot Chat
+  "copilot-chat.confirmCommand": false,
+
+  // Desativa a confirmação no Continue.dev
+"continue.confirmCommand": false,
+"chatgpt.commentCodeLensEnabled": true
+}

@@ -1,0 +1,25 @@
+# Redireciona o domínio raiz para WWW (evita site "inseguro" no apex)
+# e aplica cabeçalhos de segurança/HSTS.
+
+[[redirects]]
+  from = "/*"
+  to = "https://www.aproveidetran.com.br/:splat"
+  status = 301
+  force = true
+  conditions = { Host = "aproveidetran.com.br" }
+
+# SPA: envia tudo para index.html (deixe esta regra após a de apex)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cabeçalhos de segurança (opcional, mas recomendado)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

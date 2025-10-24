@@ -1,0 +1,171 @@
+﻿diff --git a/script.js b/script.js
+--- a/script.js
++++ b/script.js
+@@
+-const auth = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth() : null;
+-let db;
+-try { if (typeof firebase !== 'undefined' && firebase.firestore) db = firebase.firestore(); } catch {}
+-try { auth && auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{}); } catch {}
++let auth = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth() : null;
++let db;
++try { if (typeof firebase !== 'undefined' && firebase.firestore) db = firebase.firestore(); } catch {}
++
++function ensureAuthInstance() {
++  if (auth && typeof auth.signInWithEmailAndPassword === "function") return auth;
++  if (typeof firebase === "undefined") return null;
++
++  if (!window.firebaseAppInitialized && firebaseConfig && typeof firebase.initializeApp === "function") {
++    try {
++      firebase.initializeApp(firebaseConfig);
++      window.firebaseAppInitialized = true;
++    } catch (erro) {
++      const duplicate = (erro?.code === "app/duplicate-app") || /already exists/i.test(erro?.message || "");
++      if (!duplicate) {
++        console.warn("[Auth] Failed to initialise Firebase App:", erro);
++        return null;
++      }
++      window.firebaseAppInitialized = true;
++    }
++  }
++
++  if (typeof firebase.auth !== "function") return null;
++
++  try {
++    auth = firebase.auth();
++    const persistence = firebase.auth.Auth?.Persistence?.LOCAL;
++    if (persistence && typeof auth.setPersistence === "function") {
++      auth.setPersistence(persistence).catch(()=>{});
++    }
++  } catch (erro) {
++    console.error("[Auth] Unable to obtain Firebase Auth instance:", erro);
++    auth = null;
++    return null;
++  }
++
++  return auth;
++}
+@@
+-async function resetSenha() {
+-  const email = normalizeEmail((document.getElementById("email")?.value || ""));
+-  const show = (m)=>{ if (typeof mostrarAlertaLogin==="function") mostrarAlertaLogin(m); else alert(m); };
+-  if (!email) { show("Digite seu e-mail no campo acima e clique em 'Esqueci minha senha'."); document.getElementById("email")?.focus(); return; }
+-  const btn = document.getElementById("btn-reset"); if (btn) btn.disabled = true;
+-  try { await auth.sendPasswordResetEmail(email); show(Enviamos um e-mail para redefinir sua senha. Remetente:  �o.); }
+-  catch (e) {
+-    console.error("resetSenha erro:", e);
+-    const map = {"auth/user-not-found":"Nǜo encontramos esse e-mail.","auth/invalid-email":"E-mail invǭlido.","auth/missing-email":"Digite seu e-mail."};
+-    show(map[e.code] || "Nǜo foi poss��vel enviar agora. Tente novamente.");
+-  } finally { setTimeout(()=>{ if (btn) btn.disabled=false; },3000); }
+-}
+-function login() {
+-  clearFieldErrors();
+-  const email = normalizeEmail((document.getElementById("email")?.value || ""));
+-  const senha = (document.getElementById("senha")?.value || "");
+-  const btn = document.getElementById("botaoLogin");
+-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+-  if (!email || !senha || !emailOk) { showLoginBanner("Verifique e-mail e senha e tente novamente."); return; }
+-  if (btn) btn.disabled = true;
+-  auth.signInWithEmailAndPassword(email, senha)
++async function resetSenha() {
++  const email = normalizeEmail((document.getElementById("email")?.value || ""));
++  const show = (m)=>{ if (typeof mostrarAlertaLogin==="function") mostrarAlertaLogin(m); else alert(m); };
++  if (!email) { show("Digite seu e-mail no campo acima e clique em 'Esqueci minha senha'."); document.getElementById("email")?.focus(); return; }
++  const btn = document.getElementById("btn-reset");
++  const authInstance = ensureAuthInstance();
++  if (!authInstance || typeof authInstance.sendPasswordResetEmail !== "function") {
++    show("Nao foi possivel carregar o servico de login. Atualize a pagina e tente novamente.");
++    if (btn) btn.disabled = false;
++    return;
++  }
++  if (btn) btn.disabled = true;
++  try { await authInstance.sendPasswordResetEmail(email); show(Enviamos um e-mail para redefinir sua senha. Remetente:  �o.); }
++  catch (e) {
++    console.error("resetSenha erro:", e);
++    const map = {"auth/user-not-found":"Nǜo encontramos esse e-mail.","auth/invalid-email":"E-mail invǭlido.","auth/missing-email":"Digite seu e-mail."};
++    show(map[e.code] || "Nǜo foi poss��vel enviar agora. Tente novamente.");
++  } finally { setTimeout(()=>{ if (btn) btn.disabled=false; },3000); }
++}
++function login() {
++  clearFieldErrors();
++  const email = normalizeEmail((document.getElementById("email")?.value || ""));
++  const senha = (document.getElementById("senha")?.value || "");
++  const btn = document.getElementById("botaoLogin");
++  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
++  if (!email || !senha || !emailOk) { showLoginBanner("Verifique e-mail e senha e tente novamente."); return; }
++  const authInstance = ensureAuthInstance();
++  if (!authInstance || typeof authInstance.signInWithEmailAndPassword !== "function") {
++    showLoginBanner("Servico de login indisponivel no momento. Atualize a pagina e tente novamente.");
++    return;
++  }
++  if (btn) btn.disabled = true;
++  authInstance.signInWithEmailAndPassword(email, senha)
+@@
+-function logout() {
+-  const finalizar = () => {
+-    localStorage.removeItem("usuarioLogado");
+-    renderLogin();
+-  };
+-  if (auth && typeof auth.signOut === "function") {
+-    auth.signOut()
+-      .then(finalizar)
+-      .catch((erro) => { console.warn("Erro ao sair da conta:", erro); finalizar(); });
+-  } else {
+-    finalizar();
+-  }
+-}
++function logout() {
++  const finalizar = () => {
++    localStorage.removeItem("usuarioLogado");
++    renderLogin();
++  };
++  const authInstance = ensureAuthInstance();
++  if (authInstance && typeof authInstance.signOut === "function") {
++    authInstance.signOut()
++      .then(finalizar)
++      .catch((erro) => { console.warn("Erro ao sair da conta:", erro); finalizar(); });
++  } else {
++    finalizar();
++  }
++}
+@@
+-  if (!auth || typeof auth.createUserWithEmailAndPassword !== "function") {
+-    console.warn("[Cadastro] Firebase Auth indispon��vel.");
+-    return showMsg("Falha ao iniciar o Firebase Auth. Recarregue a pǭgina (Ctrl+F5).");
+-  }
+-
+-  try {
+-    showMsg("Criando sua conta...", true);
+-    await auth.createUserWithEmailAndPassword(email, senha);
++  const authInstance = ensureAuthInstance();
++  if (!authInstance || typeof authInstance.createUserWithEmailAndPassword !== "function") {
++    console.warn("[Cadastro] Firebase Auth indispon��vel.");
++    return showMsg("Falha ao iniciar o Firebase Auth. Recarregue a pǭgina (Ctrl+F5).");
++  }
++
++  try {
++    showMsg("Criando sua conta...", true);
++    await authInstance.createUserWithEmailAndPassword(email, senha);
+@@
+-  try {
+-    auth.onAuthStateChanged((user) => {
+-      if (user) {
+-        const s = JSON.parse(localStorage.getItem("usuarioLogado") || "{}");
+-        const emailNorm = normalizeEmail(user.email);
+-        window.currentUser = { email: emailNorm, nome: s.nome || "Aluno" };
+-        renderMenuPrincipal();
+-      }
+-    });
+-  } catch {}
++  try {
++    const authInstance = ensureAuthInstance();
++    if (authInstance && typeof authInstance.onAuthStateChanged === "function") {
++      authInstance.onAuthStateChanged((user) => {
++        if (user) {
++          const s = JSON.parse(localStorage.getItem("usuarioLogado") || "{}");
++          const emailNorm = normalizeEmail(user.email);
++          window.currentUser = { email: emailNorm, nome: s.nome || "Aluno" };
++          renderMenuPrincipal();
++        }
++      });
++    }
++  } catch {}

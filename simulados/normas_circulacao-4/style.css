@@ -1,0 +1,187 @@
+/* ===== Base ===== */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #e4e2e2;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  overflow-y: auto !important; /* já incorpora o outro body */
+}
+
+#footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: #afafaf;
+  text-align: center;
+  padding: 10px 0;
+  font-weight: bold;
+  font-size: 14px;
+  color: #333;
+  box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.2);
+}
+
+.container { max-width: 800px; margin: auto; padding: 20px; }
+h1 { font-size: 26px; } /* mantida a versão maior */
+.progress-container { background-color: #eee; height: 10px; margin-bottom: 10px; border-radius: 5px; }
+.progress-bar { height: 100%; background-color: #4CAF50; width: 0%; border-radius: 5px; }
+#timer { font-size: 14px; color: #666; text-align: right; }
+
+.question { text-align: left; margin-bottom: 20px; }
+.question h3 { margin-bottom: 15px; }
+.options label { display: block; margin-bottom: 5px; cursor: pointer; font-size: 25px; }
+.options input { margin-right: 15px; }
+
+button { margin-top: 15px; padding: 10px 20px; font-size: 18px; border-radius: 8px; }
+
+.correct { color: green; font-weight: bold; }
+.incorrect { color: red; font-weight: bold; }
+.incorrect > * { color: inherit; }
+
+.hidden { display: none; }
+
+input[type="radio"] {
+  width: 26px;
+  height: 24px;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+body, p, label, input, button { font-size: 22px; }
+
+h3 { font-size: 22px; color: blue; }
+
+.correct-answer {
+  background-color: #9cefaf;
+  border-left: 6px solid #28a745;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.incorrect-answer {
+  background-color: #efa6ac;
+  border-left: 6px solid #dc3545;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+/* ===== Modal legado (se existir em outras telas) ===== */
+.modal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  z-index: 9999;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 10px;
+}
+.modal-content {
+  max-height: 90vh;            /* removidas duplicatas */
+  overflow-y: auto;            /* removidas duplicatas */
+  background-color: #e3f2fd;
+  color: #0d47a1;
+  border: 3px solid #2196f3;
+  border-radius: 8px;
+  padding: 10px;
+  max-width: 300px;
+  width: 100%;
+  position: relative;
+  font-size: 18px;
+  line-height: 1.6;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+}
+.modal-content h2 {
+  font-size: 22px;
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.close-btn {
+  position: absolute;
+  top: 10px; right: 14px;
+  background: transparent;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  z-index: 10;
+  padding: 0;
+}
+
+/* ===== Modal de explicação (atual) ===== */
+/* centralizado + fundo desfocado */
+#modalExplicacao { position: fixed !important; inset: 0 !important; z-index: 2147483647 !important; display: none; }
+#modalExplicacao.is-open { display: block !important; }
+
+/* backdrop com blur real (fallback: escurece) */
+#modalExplicacao .lgm-backdrop{
+  position: absolute !important; inset: 0 !important;
+  background: rgba(15,16,20,.35) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(110%) !important;
+  backdrop-filter: blur(8px) saturate(110%) !important;
+}
+
+/* caixa ao CENTRO (PC e mobile) */
+#modalExplicacao .lgm-box{
+  position: fixed !important; left: 50% !important; top: 50% !important;
+  transform: translate(-50%,-50%) !important;
+  width: min(94vw, 560px) !important; max-height: 84vh !important; overflow: auto !important;
+  background: #fff !important; border: none !important; border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,.30) !important; padding: 0 !important;
+}
+
+/* tipografia limpa */
+#modalExplicacao .lgm-head{ padding: 20px 20px 0 !important; text-align: center !important; background: #fff !important; }
+#modalExplicacao .lgm-ico{ font-size: 46px !important; line-height: 1 !important; }
+#modalExplicacao .lgm-head h2{ margin: 8px 0 4px !important; color: #d6293e !important; font-weight: 700 !important; }
+#modalExplicacao .lgm-sub{ margin: 0 !important; color: #333 !important; }
+#modalExplicacao .lgm-body{ padding: 16px 20px 0 !important; font-size: 16px !important; line-height: 1.6 !important; color: #333 !important; }
+#modalExplicacao .lgm-foot{ padding: 20px !important; }
+#modalExplicacao .lgm-btn{
+  width: 100% !important; padding: 14px 16px !important; border: 0 !important;
+  border-radius: 10px !important; font-size: 16px !important; cursor: pointer !important;
+  background: #0d6efd !important; color: #fff !important;
+}
+#modalExplicacao .lgm-close{
+  position: absolute !important; top: 10px !important; right: 12px !important;
+  border: 0 !important; background: transparent !important;
+  font-size: 28px !important; color: #777 !important; cursor: pointer !important;
+}
+
+body.lgm-lock { overflow: hidden !important; } /* trava scroll da página */
+
+/* Animação suave do modal */
+#modalExplicacao .lgm-backdrop{
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+#modalExplicacao .lgm-box{
+  opacity: 0;
+  transform: translate(-50%,-46%) scale(.98);
+  transition: opacity .18s ease, transform .18s ease;
+}
+#modalExplicacao.is-open .lgm-backdrop{ opacity: 1; }
+#modalExplicacao.is-open .lgm-box{
+  opacity: 1;
+  transform: translate(-50%,-50%) scale(1);
+}
+/* Fechando (anima para fora antes de sumir) */
+#modalExplicacao.is-closing .lgm-backdrop{ opacity: 0; }
+#modalExplicacao.is-closing .lgm-box{
+  opacity: 0;
+  transform: translate(-50%,-46%) scale(.98);
+}
+
+/* Respeita usuários que pedem menos movimento */
+@media (prefers-reduced-motion: reduce){
+  #modalExplicacao .lgm-backdrop,
+  #modalExplicacao .lgm-box{ transition: none !important; }
+}
+
