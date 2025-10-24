@@ -613,8 +613,7 @@ if (window.visualViewport) {
  * ADMIN (quem pode liberar PRO)
  *************************************************/
 const ADMIN_EMAILS = [
-  "admfoch@adm.com","admobjetiva@adm.com","admsapucai@adm.com","cfcalianca@gmail.com",
-  "admuba@adm.com", "admleg@adm.com","admunitran@adm.com","admtransitar@adm.com"];
+  "admspc@adm.com","admunitran@adm.com"];
 function isAdmin() { const e = getUserEmail(); return !!e && ADMIN_EMAILS.includes(e); }
 
 /*************************************************
