@@ -1,11 +1,11 @@
 {
-  "defaultTenant": "legmaster",
+  "defaultTenant": "aproveidetran",
   "tenants": {
-    "legmaster": {
-      "label": "Legmaster",
+    "cfcaproveidetran": {
+      "label": "cfcaproveidetran",
       "hosts": [
-        "legmaster.com.br",
-        "www.legmaster.com.br"
+        "aproveidetran.com.br", 
+        "www.aproveidetran.com.br"
       ],
       "adminEnv": {
         "projectId": "simuladoslegmasteroficial",

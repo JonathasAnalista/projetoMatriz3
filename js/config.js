@@ -1,20 +1,20 @@
 (function (global) {
   "use strict";
 
-  const defaultTenantId = "legmaster";
+  const defaultTenantId = "aproveidetran";
 
   const tenantDefinitions = {
     [defaultTenantId]: {
-      label: "Legmaster",
-      hosts: ["legmaster.com.br", "www.legmaster.com.br"],
+      label: "cfcaproveidetran",
+      hosts: ["aproveidetran.com.br", "www.aproveidetran.com.br"],
       firebaseConfig: {
-        apiKey: "AIzaSyAdOzhxHhVouLd9ZOpMof-YQgTTSfGJSFk",
-        authDomain: "simuladoslegmasteroficial.firebaseapp.com",
-        projectId: "simuladoslegmasteroficial",
-        storageBucket: "simuladoslegmasteroficial.firebasestorage.app",
-        messagingSenderId: "487716616363",
-        appId: "1:487716616363:web:7fd2ce7a32598f720d1fee",
-        measurementId: "G-9KEMDVDGB8"
+        apiKey: "AIzaSyDfzxVXVnlKbHArzoy3deckwqFhsl_om0E",
+        authDomain: "cfcaproveidetran.firebaseapp.com",
+        projectId: "cfcaproveidetran",
+        storageBucket: "cfcaproveidetran.firebasestorage.app",
+        messagingSenderId: "261936235495",
+        appId: "1:261936235495:web:2c9b8a062f46597296b342",
+        measurementId: "G-D287FFW15Y"
       },
     },
     cfcunitran2: {
