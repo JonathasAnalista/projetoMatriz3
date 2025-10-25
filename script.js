@@ -1531,14 +1531,13 @@ window.cadastrar = async function () {
           } catch { return null; }
         })();
         const perfil = {
-          nome: nomeFinal, email, plano: "free",
+          nome: nomeFinal,
+          email,
+          plano: "free",
           criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
           atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-          cfcSlug: cfcSlug || null,
           cfcNome: cfcNome || null,
           cfcCidade: cfcCidade || null,
-          nomeSlug,
-          cidadeSlug,
           mesReferencia
         };
         await db.collection("usuarios").doc(idNew).set(perfil, { merge: true });
