@@ -64,6 +64,35 @@ const slugify = (s) =>
 const buildCfcSlug = (nome, cidade) =>
   `${slugify(toTitleCase(nome))}__${slugify(toTitleCase(cidade))}`;
 
+function applyCfcPrefillFromHostname() {
+  try {
+    const currentPrefill = (window.LEGMASTER_PREFILL && window.LEGMASTER_PREFILL.cfc) || {};
+    if (currentPrefill && currentPrefill.nome && currentPrefill.cidade) return;
+    const host = (location.hostname || '').toLowerCase();
+    if (!host || host === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return;
+    const hostProfiles = window.CFC_HOST_PROFILES || {};
+    const subdomainProfiles = window.CFC_SUBDOMAIN_PROFILES || {};
+    let profile = hostProfiles[host] || null;
+    if (!profile) {
+      const prefix = host.split('.')[0];
+      if (prefix) profile = subdomainProfiles[prefix] || null;
+    }
+    if (!profile && typeof window.resolveCfcProfileFromHost === 'function') {
+      try { profile = window.resolveCfcProfileFromHost(host) || null; }
+      catch (resolverError) { console.warn('[cfc-prefill] resolver error:', resolverError); }
+    }
+    if (!profile) return;
+    const nome = toTitleCase(profile.nome || currentPrefill.nome || '');
+    const cidade = toTitleCase(profile.cidade || currentPrefill.cidade || '');
+    const slug = profile.slug || currentPrefill.slug || ((nome && cidade) ? buildCfcSlug(nome, cidade) : null);
+    const merged = Object.assign({}, currentPrefill, profile, { nome, cidade, slug });
+    window.LEGMASTER_PREFILL = Object.assign({}, window.LEGMASTER_PREFILL, { cfc: merged });
+  } catch (err) {
+    console.warn('[cfc-prefill] não foi possível aplicar hostname:', err);
+  }
+}
+applyCfcPrefillFromHostname();
+
 const emailDocId       = (email) => normalizeEmail(email).replace(/[.@]/g, "_");
 const emailDocIdLegacy = (email) => String(email).replace(/[.@]/g, "_");
 
@@ -234,10 +263,7 @@ const VALID_ROUTE_SCREENS = new Set([
   'provas',
   'desempenho',
   'cadastro',
-  'admin-liberacoes',
-  'admin-alunosCFC',
-  'admin-desempenho',
-  'admin-desempenho-aluno'
+  'admin-liberacoes'
 ]);
 
 function normalizeRouteState(state) {
@@ -320,9 +346,6 @@ function renderFromState(state){
     case 'desempenho': return renderDesempenho();
     case 'cadastro': return renderCadastro();
     case 'admin-liberacoes': return renderAdminLiberacoes();
-    case 'admin-alunosCFC': return renderAdminAlunosCFC();
-    case 'admin-desempenho': return renderAdminDesempenho();
-    case 'admin-desempenho-aluno': return renderAdminDesempenhoAluno(p.email || '');
     default: return renderMenuPrincipal();
   }
 }
@@ -774,90 +797,146 @@ function openWhatsPro() {
 
 
 /*************************************************
- * FIRESTORE: Desempenho
+ * DESEMPENHO LOCAL (browser-only)
  *************************************************/
-window.salvarDesempenhoFirestore = async function(email, prova, acertos, totalQuestoes) {
-  email = normalizeEmail(email);
-  await ensureDb();
-  if (!db) { console.warn("⚠️ Firestore indisponível; salvando apenas localmente."); return; }
-  if (!email) { console.warn("⚠️ salvarDesempenhoFirestore: sem e-mail."); return; }
-  const emailDoc = email.replace(/[.@]/g, "_");
-  const data = new Date().toLocaleString("pt-BR");
-  try {
-    const payload = { email, prova, acertos, data, docId: emailDoc };
-    if (typeof totalQuestoes === 'number') payload.total = totalQuestoes;
-    await db.collection("desempenhos").add(payload);
-    console.log("✅ Desempenho salvo no Firestore.");
-  } catch (err) { console.error("❌ Erro ao salvar desempenho:", err); }
-};
-async function buscarDesempenhoFirestore(email) {
-  email = normalizeEmail(email);
-  await ensureDb();
-  const resultados = [];
-  try {
-    if (!db) return resultados;
-    const id = emailDocId(email);
-    // 1) Campo 'email'
-    try { const s = await db.collection("desempenhos").where("email","==",email).get(); s.forEach(d=>resultados.push(d.data())); } catch {}
-    // 2) Campo 'docId'
-    if (resultados.length===0) { try { const s = await db.collection("desempenhos").where("docId","==",id).get(); s.forEach(d=>resultados.push(d.data())); } catch {} }
-    // 3) Campos alternativos que podem ter sido usados
-    if (resultados.length===0) { try { const s = await db.collection("desempenhos").where("usuario","==",email).get(); s.forEach(d=>resultados.push(d.data())); } catch {} }
-    if (resultados.length===0) { try { const s = await db.collection("desempenhos").where("user","==",email).get(); s.forEach(d=>resultados.push(d.data())); } catch {} }
-    // 4) Documento agregado por email (docId == emailDocId) com array interno
-    if (resultados.length===0) {
-      try {
-        const doc = await db.collection('desempenhos').doc(id).get();
-        if (doc.exists) {
-          const data = doc.data() || {};
-          const arrays = ['registros','itens','historico','hist','lista'];
-          arrays.forEach(k=>{ const arr = Array.isArray(data[k]) ? data[k] : []; arr.forEach(x=> resultados.push(x)); });
-        }
-      } catch {}
-    }
-    // 5) Coleções alternativas comuns
-    if (resultados.length===0) { try { const s = await db.collection("desempenho").where("email","==",email).get(); s.forEach(d=>resultados.push(d.data())); } catch {} }
-    if (resultados.length===0) { try { const s = await db.collection("resultados").where("email","==",email).get(); s.forEach(d=>resultados.push(d.data())); } catch {} }
-    if (resultados.length===0) { try { const s = await db.collection("acessos").where("email","==",email).get(); s.forEach(d=>{ const x=d.data(); resultados.push({ email:x.email, prova:x.prova, acertos:x.acertos, total:x.totalQuestoes||x.total||null, data:x.data || (x.quando && x.quando.toDate ? x.quando.toDate().toLocaleString('pt-BR') : '') }); }); } catch {} }
-    // 6) Subcoleção dentro do doc
-    if (resultados.length===0) {
-      try {
-        const sub = await db.collection('desempenhos').doc(id).collection('itens').get();
-        sub.forEach(doc=> resultados.push(doc.data()));
-      } catch {}
-    }
-  } catch (err) { console.error("Erro ao buscar desempenho:", err); }
-  // Ordena por data (string) desc como fallback
-  try { resultados.sort((a,b)=> String(b.data||'').localeCompare(String(a.data||''))); } catch {}
-  return resultados;
+const DESEMPENHO_STORAGE_PREFIX = 'desempenho:';
+
+function getDesempenhoOwnerId(fallbackEmail) {
+  const fallback = normalizeEmail(fallbackEmail || '');
+  if (fallback) return fallback;
+  const authInstance = getAuthSafe();
+  const authUser = authInstance && authInstance.currentUser ? authInstance.currentUser : null;
+  const email = normalizeEmail(
+    (authUser && authUser.email) ||
+    getUserEmail() ||
+    (window.currentUser && window.currentUser.email) ||
+    ''
+  );
+  const uid = authUser && authUser.uid ? authUser.uid : null;
+  return email || uid || 'anon';
 }
 
-/*************************************************
- * BACKUP LOCAL
- *************************************************/
-function salvarDesempenhoLocal(email, prova, acertos, totalQuestoes) {
-  try {
-    const key = 'desempenho';
-    const store = JSON.parse(localStorage.getItem(key) || '{}');
-    const arr = store[email] || [];
-    const rec = { prova, acertos, data: new Date().toLocaleString('pt-BR') };
-    if (typeof totalQuestoes === 'number') rec.total = totalQuestoes;
-    arr.push(rec);
-    store[email] = arr;
-    localStorage.setItem(key, JSON.stringify(store));
-  } catch (e) { console.warn('⚠️ Falha no backup local do desempenho:', e); }
+function getDesempenhoStorageKey(ownerId) {
+  const norm = String(ownerId || 'anon').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+  return `${DESEMPENHO_STORAGE_PREFIX}${norm || 'anon'}`;
 }
+
+function parseLegacyDateString(value) {
+  if (!value) return new Date().toISOString();
+  try {
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString();
+  } catch {}
+  const match = /(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(value);
+  if (match) {
+    const [, dd, mm, yyyy, hh='00', min='00', ss='00'] = match;
+    const iso = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`);
+    if (!isNaN(iso.getTime())) return iso.toISOString();
+  }
+  return new Date().toISOString();
+}
+
+function normalizeDesempenhoEntry(entry) {
+  const item = {
+    provaId: entry?.provaId || entry?.provaSlug || localStorage.getItem('__ultimaProvaSlug') || null,
+    provaNome: entry?.provaNome || entry?.prova || localStorage.getItem('provaAtual') || 'Simulado',
+    acertos: Number(entry?.acertos ?? 0),
+    total: typeof entry?.total === 'number'
+      ? entry.total
+      : (typeof entry?.totalQuestoes === 'number' ? entry.totalQuestoes : null),
+    dataISO: entry?.dataISO || null
+  };
+  if (!Number.isFinite(item.acertos)) item.acertos = 0;
+  if (item.total != null && !Number.isFinite(item.total)) item.total = null;
+  if (!item.dataISO) item.dataISO = new Date().toISOString();
+  return item;
+}
+
+function readLegacyDesempenho(ownerId) {
+  const email = normalizeEmail(ownerId) || ownerId;
+  if (!email) return [];
+  try {
+    const legacy = JSON.parse(localStorage.getItem('desempenho') || '{}');
+    const arr = Array.isArray(legacy[email]) ? legacy[email] : [];
+    return arr.map((item) => normalizeDesempenhoEntry({
+      provaNome: item.prova || item.provaNome,
+      acertos: item.acertos,
+      total: item.total,
+      dataISO: item.dataISO || (item.data ? parseLegacyDateString(item.data) : null),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function listarDesempenhoLocal(ownerId, opts) {
+  const resolvedOwner = ownerId || getDesempenhoOwnerId();
+  const key = getDesempenhoStorageKey(resolvedOwner);
+  let arr = [];
+  try {
+    arr = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!Array.isArray(arr)) arr = [];
+  } catch { arr = []; }
+  if (!arr.length) {
+    const migrated = readLegacyDesempenho(resolvedOwner);
+    if (migrated.length) {
+      arr = migrated;
+      try { localStorage.setItem(key, JSON.stringify(migrated)); } catch {}
+    }
+  }
+  if (opts && opts.raw) return arr;
+  return arr.slice().sort((a,b)=> String(b.dataISO||'').localeCompare(String(a.dataISO||'')));
+}
+
+function salvarDesempenhoLocal(ownerId, registro) {
+  try {
+    const resolvedOwner = ownerId || getDesempenhoOwnerId();
+    const key = getDesempenhoStorageKey(resolvedOwner);
+    const lista = listarDesempenhoLocal(resolvedOwner, { raw: true });
+    const item = normalizeDesempenhoEntry(registro);
+    lista.push(item);
+    localStorage.setItem(key, JSON.stringify(lista));
+    return item;
+  } catch (err) {
+    console.warn('[desempenho] Falha ao salvar localmente:', err);
+    return null;
+  }
+}
+
+function limparDesempenhoLocal(ownerId) {
+  try { localStorage.removeItem(getDesempenhoStorageKey(ownerId || getDesempenhoOwnerId())); } catch {}
+}
+
+function formatarDataDesempenho(item) {
+  try {
+    if (item?.dataISO) {
+      const dt = new Date(item.dataISO);
+      if (!isNaN(dt.getTime())) return dt.toLocaleString('pt-BR');
+    }
+  } catch {}
+  return item?.data || '-';
+}
+
+window.salvarDesempenhoLocal = salvarDesempenhoLocal;
+window.listarDesempenhoLocal = listarDesempenhoLocal;
+window.limparDesempenhoLocal = limparDesempenhoLocal;
+
 window.salvarDesempenho = function (prova, acertos, totalQuestoes) {
-  const email = getUserEmail();
+  const ownerId = getDesempenhoOwnerId(getUserEmail());
   const nomeProva = prova || localStorage.getItem('provaAtual') || 'Simulado';
-  window.salvarDesempenhoFirestore(email, nomeProva, acertos, totalQuestoes);
-  if (email) salvarDesempenhoLocal(email, nomeProva, acertos, totalQuestoes);
+  salvarDesempenhoLocal(ownerId, {
+    provaNome: nomeProva,
+    acertos,
+    total: typeof totalQuestoes === 'number' ? totalQuestoes : null,
+    dataISO: new Date().toISOString(),
+  });
 };
 window.registrarDesempenho = window.salvarDesempenho;
 window.registrarDesempenhoFimProva = function (acertos, totalQuestoes) {
   const nomeProva = localStorage.getItem('provaAtual') || 'Simulado';
   window.salvarDesempenho(nomeProva, acertos, totalQuestoes);
 };
+
 
 /* ================== AJUDA NO WHATSAPP ================== */
 const WA_NUMBER = "5533999634994";
@@ -1038,8 +1117,6 @@ function renderMenuPrincipal() {
         ${isAdmin() ? `
 
           <button class="auth-btn" type="button" onclick="renderAdminLiberacoes()">&#9881;&#65039;&nbsp;Admin Libera&ccedil;&otilde;es</button>
-
-          <button class="auth-btn" type="button" onclick="renderAdminAlunosCFC()">&#128203;&nbsp;Admin Alunos por CFC</button>
 
         ` : ""}
 
@@ -1306,17 +1383,16 @@ window.abrirProva = function(nomeProva, url) {
 /*************************************************
  * DESEMPENHO
  *************************************************/
-async function renderDesempenho() {
+function renderDesempenho() {
   if (!window.__navigatingBack) pushRoute('desempenho');
-  localStorage.setItem("telaAtual", "desempenho");
-  const email = getUserEmail(); if (!email) { mostrarAlerta("⚠️ Faça login para ver o desempenho."); return; }
-  let dados = [];
-  try { dados = await buscarDesempenhoFirestore(email); } catch (e) { console.warn('⚠️ Falha ao buscar no Firestore, usando backup local.', e); }
-  if (!Array.isArray(dados) || dados.length===0) { const store = JSON.parse(localStorage.getItem('desempenho') || '{}'); dados = store[email] || []; }
-  document.getElementById("form-box").innerHTML = `
+  localStorage.setItem('telaAtual', 'desempenho');
+  const email = getUserEmail();
+  if (!email) { mostrarAlerta('?? Fa?a login para ver o desempenho.'); return; }
+  const dados = listarDesempenhoLocal(getDesempenhoOwnerId(email));
+  document.getElementById('form-box').innerHTML = `
     <div style="text-align:center;">
-      <h2 style="color:#2E7D32; font-size: 24px;">📊 Desempenho</h2><br>
-      ${dados.length===0 ? "<p class='desempenho-vazio'>Nenhuma prova realizada ainda.</p>" : `
+      <h2 style="color:#2E7D32; font-size: 24px;">Desempenho</h2><br>
+      ${!Array.isArray(dados) || dados.length===0 ? "<p class='desempenho-vazio'>Nenhuma prova realizada ainda.</p>" : `
         <div class="table-wrap">
           <table class="table-desempenho" role="table">
             <thead>
@@ -1329,9 +1405,9 @@ async function renderDesempenho() {
             <tbody>
               ${dados.map(d => `
                 <tr>
-                  <td class="td-prova">${d.prova || ''}</td>
-                  <td class="td-acertos"><span class="score-pill">${(d.acertos ?? '').toString()}</span></td>
-                  <td class="td-data">${d.data || ''}</td>
+                  <td class="td-prova">${d.provaNome || d.prova || ''}</td>
+                  <td class="td-acertos"><span class="score-pill">${(d.acertos ?? '').toString()}</span>${d.total ? ` / ${d.total}` : ''}</td>
+                  <td class="td-data">${formatarDataDesempenho(d)}</td>
                 </tr>`).join('')}
             </tbody>
           </table>
@@ -1340,6 +1416,7 @@ async function renderDesempenho() {
     </div>`;
   animateCard();
 }
+
 
 /*************************************************
  * INTRO
@@ -1447,10 +1524,22 @@ window.cadastrar = async function () {
         primeLiberacaoCache(email, { email, plano: "free", ativo: true, ate: null, atualizadoEm: cacheTs });
 
         // Perfil do aluno
+        const mesReferencia = (() => {
+          try {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+          } catch { return null; }
+        })();
         const perfil = {
           nome: nomeFinal, email, plano: "free",
           criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+          cfcSlug: cfcSlug || null,
+          cfcNome: cfcNome || null,
+          cfcCidade: cfcCidade || null,
+          nomeSlug,
+          cidadeSlug,
+          mesReferencia
         };
         await db.collection("usuarios").doc(idNew).set(perfil, { merge: true });
         if (idLegacy !== idNew) await db.collection("usuarios").doc(idLegacy).set({ ...perfil, _migrado: true }, { merge: true });
@@ -1591,662 +1680,6 @@ async function voltarFree(email) {
 }
 
 /*************************************************
- * ADMIN – LISTA DE ALUNOS POR CFC (NOME + CIDADE) + EXPORT
- *************************************************/
-async function renderAdminAlunosCFC() {
-  if (!window.__navigatingBack) pushRoute('admin-alunosCFC');
-  localStorage.setItem('telaAtual','admin_alunos_cfc');
-  if (!isAdmin()) { mostrarAlerta('Acesso negado.'); return; }
-  const el = document.getElementById('form-box'); if (!el) return;
-  el.innerHTML = `
-    <div style="text-align:center">
-      <h2 style="color:#2E7D32;">Admin - Alunos por CFC</h2>
-      <p style="color:#555;font-size:14px;margin-top:6px">Use a <b>Busca rápida</b> para encontrar os alunos por CFC e cidade.</p>
-      <div style="max-width:680px;margin:12px auto 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;">
-        <input id="adm_busca" class="admin-input" placeholder="Busca rápida: digite parte do nome do CFC ou da cidade" style="flex:1;min-width:240px"/>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#334155">
-          <input type="checkbox" id="adm_busca_uf" /> Considerar UF (ex.: MG)
-        </label>
-        <button class="auth-btn" id="adm_busca_limpar">Limpar</button>
-      </div>
-      <div id="adm_busca_result" style="max-width:820px;margin:12px auto 0;text-align:left"></div>
-      <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;">
-        <button class="auth-btn auth-link" data-back="menu">Voltar</button>
-      </div>
-    </div>`;
-  (function(){
-    const debounce = (fn,ms=350)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms);} };
-    const buscaInput = document.getElementById('adm_busca');
-    const buscaBox = document.getElementById('adm_busca_result');
-    const limparBtn = document.getElementById('adm_busca_limpar');
-    // Remover checkbox UF e ajustar layout para coluna + botão Buscar
-    try { const lab = document.getElementById('adm_busca_uf')?.parentElement; if (lab) lab.remove(); } catch {}
-    try {
-      const cont = buscaInput ? buscaInput.parentElement : null;
-      if (cont) { cont.style.display='flex'; cont.style.flexDirection='column'; cont.style.gap='8px'; cont.style.alignItems='center'; cont.style.maxWidth='900px'; cont.style.margin='12px auto 0'; }
-      if (buscaInput) { buscaInput.style.width='100%'; buscaInput.style.maxWidth='900px'; buscaInput.style.padding='14px 18px'; buscaInput.style.borderRadius='12px'; buscaInput.style.fontSize='16px'; buscaInput.placeholder='Buscar por CFC ou cidade'; }
-      if (limparBtn && !document.getElementById('adm_busca_buscar')) {
-        const btn = document.createElement('button');
-        btn.className = 'auth-btn';
-        btn.id = 'adm_busca_buscar';
-        btn.textContent = 'Buscar';
-        cont && cont.insertBefore(btn, limparBtn);
-        btn.addEventListener('click', ()=> doBusca());
-      }
-    } catch {}
-    if (limparBtn) limparBtn.onclick = ()=>{ if (buscaInput) buscaInput.value=''; if (buscaBox) buscaBox.innerHTML=''; };
-    const renderBusca = (alunos, termo)=>{
-      if (!buscaBox) return;
-      if (!alunos.length) { buscaBox.innerHTML = `<p style="color:#555">Nenhum aluno encontrado para "<b>${termo}</b>".</p>`; return; }
-      const total = alunos.length;
-      const pro = alunos.filter(a => (a.plano||'free').toLowerCase()==='pro').length;
-      const free = total - pro;
-      const linhas = alunos.map(a=>{
-        const pill = (String(a.plano||'').toLowerCase()==='pro') ? '<span class="pill pro">PRO</span>' : '<span class="pill free">FREE</span>';
-        return `<tr>
-          <td>${a.nome || '-'}</td>
-          <td>${a.email || '-'}</td>
-          <td>${pill}</td>
-          <td>${a.cfcNome || '-'}</td>
-          <td>${a.cfcCidade || '-'}</td>
-          <td>${a.criadoEmFmt || '-'}</td>
-        </tr>`;
-      }).join('');
-      buscaBox.innerHTML = `
-        <div style="background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px;box-shadow:0 4px 12px rgba(0,0,0,0.05)">
-          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
-            <div>
-              <div style="font-weight:700;color:#1f2937">Resultados da Busca rápida</div>
-              <div style="color:#475569;font-size:13px;margin-top:4px">Termo: <b>${termo}</b> • Total: <b>${total}</b> • PRO: <b>${pro}</b> • FREE: <b>${free}</b></div>
-            </div>
-          </div>
-          <div style="overflow:auto;margin-top:12px;max-height:60vh;border:1px solid #eee;border-radius:10px">
-            <table class="table-desempenho">
-              <thead><tr><th>Nome</th><th>Email</th><th>Plano</th><th>CFC</th><th>Cidade</th><th>Criado em</th></tr></thead>
-              <tbody>${linhas}</tbody>
-            </table>
-          </div>
-        </div>`;
-    };
-    const doBusca = debounce(async ()=>{
-      const termo = (buscaInput?.value || '').trim();
-      if (!buscaBox) return;
-      if (!termo) { buscaBox.innerHTML=''; return; }
-      buscaBox.innerHTML = `<p style="color:#2E7D32">Buscando por "<b>${termo}</b>"...</p>`;
-      try {
-        const alunos = await buscarAlunosPorTermoCfc(termo, 120);
-        renderBusca(alunos, termo);
-      } catch (e) {
-        console.warn('Busca rápida falhou:', e);
-        buscaBox.innerHTML = `<p style="color:#C62828">Não foi possível buscar agora. Tente novamente.</p>`;
-      }
-    }, 350);
-    if (buscaInput) buscaInput.addEventListener('input', doBusca);
-  })();
-}
-
-async function fetchAllDesempenho(limit = 800) {
-  await ensureDb();
-  const itens = [];
-  if (!db) return itens;
-  try {
-    let snap;
-    try {
-      snap = await db.collection('desempenhos').orderBy('data', 'desc').limit(limit).get();
-    } catch (e) {
-      snap = await db.collection('desempenhos').limit(limit).get();
-    }
-    snap.forEach(doc => itens.push(doc.data()));
-    // Complementa com registros da coleção 'acessos' (histórico antigo)
-    try {
-      let snapA;
-      try { snapA = await db.collection('acessos').orderBy('data','desc').limit(limit).get(); }
-      catch { snapA = await db.collection('acessos').limit(limit).get(); }
-      snapA.forEach(doc => {
-        const d = doc.data() || {};
-        itens.push({
-          email: (d.email||'').toLowerCase(),
-          prova: d.prova || d.simulado || '',
-          acertos: Number(d.acertos||0),
-          total: Number(d.totalQuestoes || d.total || 0),
-          data: d.data || (d.quando && d.quando.toDate ? d.quando.toDate().toLocaleString('pt-BR') : '')
-        });
-      });
-    } catch {}
-  } catch {}
-  // Ordena por data (string) desc como fallback
-  try { itens.sort((a,b)=> String(b.data||'').localeCompare(String(a.data||''))); } catch {}
-  return itens;
-}
-
-async function fetchAllUsuarios(limit = 1000){
-  await ensureDb();
-  const itens = [];
-  if (!db) return itens;
-  try {
-    let snap = await db.collection('usuarios').limit(limit).get();
-    snap.forEach(doc => {
-      const d = doc.data() || {};
-      itens.push({
-        email: (d.email||'').toLowerCase(),
-        nome: d.nome || '',
-        plano: (d.plano||'').toLowerCase(),
-        cfcNome: d.cfcNome || '',
-        cfcCidade: d.cfcCidade || '',
-        atualizadoEm: d.atualizadoEm || d.criadoEm || null
-      });
-    });
-  } catch(e){ console.warn('[admin] falha ao buscar usuarios:', e); }
-  itens.sort((a,b)=> String((b.atualizadoEm&&b.atualizadoEm.toDate?.()||b.atualizadoEm)||'').localeCompare(String((a.atualizadoEm&&a.atualizadoEm.toDate?.()||a.atualizadoEm)||'')) || a.email.localeCompare(b.email));
-  return itens;
-}
-
-async function buscarUsuarioPorEmail(email){
-  await ensureDb();
-  if (!db) return null;
-  email = normalizeEmail(email||'');
-  const id = emailDocId(email);
-  try {
-    const doc = await db.collection('usuarios').doc(id).get();
-    if (doc.exists) return doc.data();
-  } catch {}
-  try {
-    const snap = await db.collection('usuarios').where('email','==',email).limit(1).get();
-    let out=null; snap.forEach(d=> out=d.data()); return out;
-  } catch {}
-  return null;
-}
-
-function exportCsv(filename, rows, headers, opts) {
-  try {
-    const delim = (opts && opts.delim) || ';'; // Excel pt-BR costuma usar ;
-    const lf = '\r\n'; // CRLF para compatibilidade com Windows/Excel
-    const esc = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
-    const fmtNum = v => {
-      if (typeof v === 'number' && isFinite(v)) {
-        const s = String(v);
-        return delim === ';' ? s.replace('.', ',') : s; // vírgula decimal em BR
-      }
-      return null;
-    };
-    const lines = [];
-    lines.push(headers.join(delim));
-    for (const r of (rows || [])) {
-      const cols = headers.map(h => {
-        const v = r[h];
-        const num = fmtNum(v);
-        if (num !== null) return num; // sem aspas para manter número
-        return esc(v);
-      });
-      lines.push(cols.join(delim));
-    }
-    const bom = '\ufeff'; // BOM para Excel reconhecer UTF-8
-    const blob = new Blob([bom + lines.join(lf)], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  } catch (e) { console.warn('CSV export falhou:', e); }
-}
-
-function renderTableRaw(rows){
-  const tbl = [`<table class=\"table-desempenho\">`,
-    `<thead><tr><th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Data</th><th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Email</th><th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Prova</th><th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Acertos</th></tr></thead>`,
-    '<tbody>'];
-  rows.forEach(r=>{
-    tbl.push(`<tr>
-      <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.data||''}</td>
-      <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.email||''}</td>
-      <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.prova||''}</td>
-      <td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>${r.acertos??''}</td>
-    </tr>`);
-  });
-  tbl.push('</tbody></table>');
-  const el = document.getElementById('adTable'); if (el) el.innerHTML = tbl.join('');
-}
-
-function renderTableAgg(rows){
-  const tbl = [`<table class=\"table-desempenho\">`,
-    `<thead><tr><th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Email</th><th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Qtd provas</th><th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Média acertos</th><th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Última atividade</th></tr></thead>`,
-    '<tbody>'];
-  rows.forEach(r=>{
-    tbl.push(`<tr>
-      <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.email||''}</td>
-      <td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>${r.total||0}</td>
-      <td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>${r.acertosMedio||''}</td>
-      <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.ultima||''}</td>
-    </tr>`);
-  });
-  tbl.push('</tbody></table>');
-  const el = document.getElementById('adTable'); if (el) el.innerHTML = tbl.join('');
-}
-
-async function renderAdminDesempenho(){
-  if (!window.__navigatingBack) pushRoute('admin-desempenho');
-  localStorage.setItem('telaAtual','admin_desempenho');
-  if (!isAdmin()) { mostrarAlerta('Acesso negado.'); return; }
-  const box = document.getElementById('form-box');
-  if (!box) return;
-  box.innerHTML = `
-    <div style="text-align:center;">
-      <h2 style="color:#2E7D32;">📊 Admin - Desempenho</h2>
-      <div style="margin:14px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <input id="adFilter" class="admin-input" placeholder="Filtrar por email" style="width:100%; max-width:900px; padding:14px 18px; border:1px solid #ddd; border-radius:12px; font-size:16px;" />
-        
-        <button class="auth-btn" id="adReload">Atualizar</button>
-        <button class="auth-btn" id="adExport">Exportar CSV</button>
-        <button class="auth-btn" id="adExportTxt">Exportar TXT</button>
-        <button class="auth-btn auth-link" data-back="menu">Voltar</button>
-      </div>
-      <div id="adTable" style="overflow:auto; max-height:60vh; padding:0 8px; text-align:left;"></div>
-    </div>`;
-  animateCard();
-  let cache = await fetchAllDesempenho(800);
-  let alunosCache = await fetchAllUsuarios(1000);
-  const TOTAL_PADRAO = (window.LEGMASTER_CONFIG && window.LEGMASTER_CONFIG.QUESTOES_TOTAL) || 30;
-  function apply(){
-    const ft = (document.getElementById('adFilter').value||'').toLowerCase();
-    const mode = 'alunos';
-    // Nova visão: em "Alunos" dividir em >=70% e <70% de assertividade
-    if (mode === 'alunos') {
-      const byEmail = new Map();
-      (cache||[]).forEach(r=>{ const em=(r.email||'').toLowerCase(); if(!em) return; const list=byEmail.get(em)||[]; list.push(r); byEmail.set(em,list); });
-      const aluByEmail = new Map((alunosCache||[]).map(a=> [String(a.email||'').toLowerCase(), a]));
-      const rowsAll = Array.from(byEmail.entries()).map(([email,list])=>{
-        const a = aluByEmail.get(email) || {};
-        let sumRatio=0; const n=list.length;
-        list.forEach(x=>{ const denom = Number(x.total||0) || TOTAL_PADRAO; const ac = Number(x.acertos)||0; sumRatio += ac/Math.max(1,denom); });
-        const mediaPct = n ? Number(((sumRatio/n)*100).toFixed(1)) : 0;
-        return {
-          email,
-          nome: a.nome || email.split('@')[0],
-          plano: (a.plano||'').toLowerCase(),
-          cfc: [a.cfcNome,a.cfcCidade].filter(Boolean).join(' / '),
-          total: n,
-          mediaPct,
-          ultima: (list[0]?.data || '')
-        };
-      }).filter(r=> (r.email+' '+r.nome+' '+r.cfc+' '+r.plano).toLowerCase().includes(ft));
-
-      const aprov = rowsAll.filter(r=> r.mediaPct >= 70).sort((a,b)=> b.mediaPct-a.mediaPct);
-      const abaixo = rowsAll.filter(r=> r.mediaPct < 70).sort((a,b)=> b.mediaPct-a.mediaPct);
-
-      function makeTable(rows, title){
-        const head = `<div style=\"font-weight:700;margin:6px 0\">${title}</div>`+
-          `<table class=\"table-desempenho\"><thead><tr>`+
-          `<th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Email</th>`+
-          `<th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Nome</th>`+
-          `<th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Media %</th>`+
-          `<th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Qtd</th>`+
-          `<th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Ultima</th>`+
-          `</tr></thead><tbody>`;
-        const body = rows.map(r=>`<tr>`+
-          `<td style='padding:8px;border-bottom:1px solid #f0f0f0'><a href='#' class='ad-email' data-email='${r.email}'>${r.email}</a></td>`+
-          `<td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.nome}</td>`+
-          `<td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>${r.mediaPct}%</td>`+
-          `<td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>${r.total}</td>`+
-          `<td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.ultima}</td>`+
-          `</tr>`).join('');
-        return head + body + '</tbody></table>';
-      }
-
-      const html = `<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px\">`+
-        `<div>${makeTable(aprov,'Alunos com \u2265 70%')}</div>`+
-        `<div>${makeTable(abaixo,'Alunos com < 70%')}</div>`+
-        `</div>`;
-      const el = document.getElementById('adTable'); if (el) el.innerHTML = html;
-
-      // Exportação concisa (nome, email, qtd_provas, média) + TXT
-      const concise = aprov.concat(abaixo).map(r=>({ nome: r.nome, email: r.email, qtd_provas: r.total, media: r.mediaPct }));
-      const btn = document.getElementById('adExport'); if (btn) btn.onclick = () => exportCsv('alunos_resumo.csv', concise, ['nome','email','qtd_provas','media']);
-      const btnT = document.getElementById('adExportTxt'); if (btnT) {
-        const cols = [
-          { key:'nome',  title:'Aluno',   w:24 },
-          { key:'email', title:'Email',   w:28 },
-          { key:'qtd_provas', title:'qtd_provas', w:12,  align:'right' },
-          { key:'media', title:'Média %', w:9,  align:'right' }
-        ];
-        btnT.onclick = () => exportTxt('alunos_resumo.txt', concise, cols);
-      }
-
-      // clique para abrir detalhe
-      document.querySelectorAll('.ad-email').forEach(a=>{ a.addEventListener('click', (ev)=>{ ev.preventDefault(); const em=a.getAttribute('data-email'); if (em) renderAdminDesempenhoAluno(em); }); });
-      return;
-    }
-    if (mode === 'alunos'){
-      // Apenas alunos com atividade (presentes nos registros)
-      const byEmail = new Map();
-      (cache||[]).forEach(r=>{ const em=(r.email||'').toLowerCase(); if(!em) return; const list=byEmail.get(em)||[]; list.push(r); byEmail.set(em,list); });
-      const aluByEmail = new Map((alunosCache||[]).map(a=> [String(a.email||'').toLowerCase(), a]));
-      const rowsAll = Array.from(byEmail.entries()).map(([email,list])=>{
-        const a = aluByEmail.get(email) || {};
-        const totalRegs = list.length;
-        const somaAcertos = list.reduce((s,x)=> s + (Number(x.acertos)||0), 0);
-        const mediaAcertos = (somaAcertos/Math.max(1,totalRegs)).toFixed(2);
-        const ultima = list[0]?.data || '';
-        return {
-          email,
-          nome: a.nome || email.split('@')[0],
-          plano: (a.plano||'').toLowerCase(),
-          cfc: [a.cfcNome,a.cfcCidade].filter(Boolean).join(' / '),
-          total: totalRegs,
-          acertosMedio: mediaAcertos,
-          ultima
-        };
-      });
-      const rows = rowsAll.filter(r=> (r.email+' '+r.nome+' '+r.cfc+' '+r.plano).toLowerCase().includes(ft))
-        .sort((a,b)=> String(b.ultima||'').localeCompare(String(a.ultima||'')) || a.email.localeCompare(b.email));
-
-      const tbl = [`<table class=\"table-pro\">`,
-        `<thead><tr>
-          <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Email</th>
-          <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Nome</th>
-          <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Plano</th>
-          <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>CFC</th>
-          <th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Qtd provas</th>
-          <th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Média acertos</th>
-          <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Última</th>
-        </tr></thead>`, '<tbody>'];
-      rows.forEach(r=>{
-        const pill = (String(r.plano||'').toLowerCase()==='pro') ? '<span class="pill pro">PRO</span>' : '<span class="pill free">FREE</span>';
-        tbl.push(`<tr>
-          <td><a href='#' class='ad-email' data-email='${r.email}'>${r.email}</a></td>
-          <td>${r.nome}</td>
-          <td>${pill}</td>
-          <td>${r.cfc}</td>
-          <td style='text-align:right'>${r.total}</td>
-          <td style='text-align:right'>${r.acertosMedio}</td>
-          <td>${r.ultima}</td>
-        </tr>`);
-      });
-      tbl.push('</tbody></table>');
-      const el = document.getElementById('adTable'); if (el) el.innerHTML = tbl.join('');
-      // export
-      const headers=['email','nome','plano','cfc','total','acertosMedio','ultima'];
-      const btn = document.getElementById('adExport'); if (btn) btn.onclick = () => exportCsv('alunos_com_atividade.csv', rows, headers);
-      // clicks
-      document.querySelectorAll('.ad-email').forEach(a=>{
-        a.addEventListener('click', (ev)=>{ ev.preventDefault(); const em = a.getAttribute('data-email'); if (em) renderAdminDesempenhoAluno(em); });
-      });
-    }
-    else if (mode === 'agg'){
-      const map = new Map();
-      cache.forEach(r=>{ const email=(r.email||'').toLowerCase(); const list=map.get(email)||[]; list.push(r); map.set(email,list); });
-      const arr = Array.from(map.entries()).map(([email,list])=>{
-        const total = list.length;
-        const soma = list.reduce((s,x)=> s + (Number(x.acertos)||0), 0);
-        const ultima = list[0]?.data || '';
-        return { email, total, acertosMedio: (soma/Math.max(1,total)).toFixed(2), ultima };
-      }).filter(r=> r.email.includes(ft) || String(r.ultima).toLowerCase().includes(ft));
-      renderTableAgg(arr);
-      const headers = ['email','total','acertosMedio','ultima'];
-      const btn = document.getElementById('adExport'); if (btn) btn.onclick = () => exportCsv('desempenho_agrupado.csv', arr, headers);
-      const btnT = document.getElementById('adExportTxt'); if (btnT) {
-        const cols = [
-          { key:'email',       title:'Email',        w:28 },
-          { key:'total',       title:'Qtd provas',   w:10, align:'right' },
-          { key:'acertosMedio',title:'Média acertos',w:14, align:'right' },
-          { key:'ultima',      title:'Última',       w:19 }
-        ];
-        btnT.onclick = () => exportTxt('desempenho_agrupado.txt', arr, cols);
-      }
-    } else {
-      const rows = cache.map(r=>({ data: r.data||'', email: r.email||'', prova: r.prova||'', acertos: r.acertos })).filter(r=> (r.data+' '+r.email+' '+r.prova).toLowerCase().includes(ft));
-      renderTableRaw(rows);
-      const headers = ['data','email','prova','acertos'];
-      const btn = document.getElementById('adExport'); if (btn) btn.onclick = () => exportCsv('desempenho_registros.csv', rows, headers);
-      const btnT = document.getElementById('adExportTxt'); if (btnT) {
-        const cols = [
-          { key:'data',    title:'Data',    w:19 },
-          { key:'email',   title:'Email',   w:28 },
-          { key:'prova',   title:'Prova',   w:36 },
-          { key:'acertos', title:'Acertos', w:8, align:'right' }
-        ];
-        btnT.onclick = () => exportTxt('desempenho_registros.txt', rows, cols);
-      }
-    }
-  }
-  const r = document.getElementById('adReload'); if (r) r.onclick = async ()=>{ cache = await fetchAllDesempenho(800); alunosCache = await fetchAllUsuarios(1000); apply(); };
-  // Apenas um filtro por email; sem seletor de modo
-  const f = document.getElementById('adFilter'); if (f) f.oninput = apply;
-  apply();
-}
-
-async function renderAdminDesempenhoAluno(email){
-  if (!window.__navigatingBack) pushRoute('admin-desempenho-aluno', { email: normalizeEmail(email||'') });
-  localStorage.setItem('telaAtual','admin_desempenho_aluno');
-  if (!isAdmin()) { mostrarAlerta('Acesso negado.'); return; }
-  email = normalizeEmail(email||'');
-  const box = document.getElementById('form-box'); if (!box) return;
-  const perfil = await buscarUsuarioPorEmail(email);
-  const nomeAluno = (perfil && (perfil.nome || perfil.nomeCompleto)) || (email.split('@')[0]) || '';
-  const dados = await buscarDesempenhoFirestore(email);
-  const TOTAL_PADRAO = (window.LEGMASTER_CONFIG && window.LEGMASTER_CONFIG.QUESTOES_TOTAL) || 30;
-  const rows = (dados||[]).map(d=>{
-    const total = Number(d.total || TOTAL_PADRAO) || TOTAL_PADRAO;
-    const ac = Number(d.acertos)||0;
-    const pct = ((ac/Math.max(1,total))*100).toFixed(0)+'%';
-    return { nome: nomeAluno, email, data:d.data||'', prova:d.prova||'', acertos: ac, total, pct };
-  });
-  const media = rows.length ? (rows.reduce((s,x)=> s + (x.acertos/x.total), 0)/rows.length*100).toFixed(1)+'%' : '—';
-  box.innerHTML = `
-    <div style="text-align:center;">
-      <h2 style="color:#2E7D32;">📈 Desempenho do aluno</h2>
-      <p style="margin:4px 0 12px 0;color:#333"><b>${nomeAluno}</b> • <span>${email}</span> • Média: <b>${media}</b></p>
-      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px">
-        <button class="auth-btn" id="adExportAluno">Exportar CSV</button>
-        <button class="auth-btn" id="adExportAlunoTxt">Exportar TXT</button>
-        <button class="auth-btn auth-link" data-back="admin-desempenho">Voltar</button>
-      </div>
-      <div style="overflow:auto; max-height:60vh; padding:0 8px; text-align:left;">
-        <table class="table-desempenho">
-          <thead><tr>
-            <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Aluno</th>
-            <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Email</th>
-            <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Data</th>
-            <th style='text-align:left;padding:8px;border-bottom:1px solid #ddd'>Prova</th>
-            <th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Acertos</th>
-            <th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Total</th>
-            <th style='text-align:right;padding:8px;border-bottom:1px solid #ddd'>Assertividade</th>
-          </tr></thead>
-          <tbody>
-            ${rows.length ? rows.map(r=>`<tr>
-              <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.nome}</td>
-              <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.email}</td>
-              <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.data}</td>
-              <td style='padding:8px;border-bottom:1px solid #f0f0f0'>${r.prova}</td>
-              <td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>${r.acertos}</td>
-              <td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>${r.total}</td>
-              <td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>${r.pct}</td>
-            </tr>`).join('') : `<tr><td colspan="5" style='padding:12px;color:#666;text-align:center'>Nenhum registro encontrado para este aluno.</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
-  animateCard();
-  const headers=['nome','email','data','prova','acertos','total','pct'];
-  const btn = document.getElementById('adExportAluno'); if (btn) btn.onclick = () => exportCsv(`desempenho_${email.replace(/[@.]/g,'_')}.csv`, rows, headers);
-  const cols = [
-    { key:'nome', title:'Aluno', w:24 },
-    { key:'email', title:'Email', w:28 },
-    { key:'data', title:'Data', w:19 },
-    { key:'prova', title:'Prova', w:40 },
-    { key:'acertos', title:'Acertos', w:8, align:'right' },
-    { key:'total', title:'Total', w:6, align:'right' },
-    { key:'pct', title:'Assertividade', w:13, align:'right' }
-  ];
-  const btn2 = document.getElementById('adExportAlunoTxt'); if (btn2) btn2.onclick = () => exportTxt(`desempenho_${email.replace(/[@.]/g,'_')}.txt`, rows, cols);
-}
-
-function exportTxt(filename, rows, cols){
-  try {
-    const col = Array.isArray(cols) && cols.length ? cols : [
-      { key:'data', title:'Data', w:19 },
-      { key:'prova', title:'Prova', w:40 },
-      { key:'acertos', title:'Acertos', w:8, align:'right' },
-      { key:'total', title:'Total', w:6, align:'right' },
-      { key:'pct', title:'Assertividade', w:13, align:'right' }
-    ];
-    const pad = (s,w,align)=>{
-      s = String(s==null?'':s);
-      if (s.length > w) s = s.slice(0,w);
-      const sp = ' '.repeat(Math.max(0, w - s.length));
-      return align==='right' ? sp + s : s + sp;
-    };
-    const lines = [];
-    lines.push(col.map(c=> pad(c.title, c.w, c.align)).join('  '));
-    lines.push(col.map(c=> '-'.repeat(c.w)).join('  '));
-    rows.forEach(r=>{
-      lines.push(col.map(c=> pad(r[c.key] ?? '', c.w, c.align)).join('  '));
-    });
-    const blob = new Blob([lines.join('\n')+'\n'], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  } catch (e) { console.warn('TXT export falhou:', e); }
-}
-
-// Garante que o botão apareça no menu do Admin sem alterar o template original
-(function attachAdminPerfButton(){
-  const original = renderMenuPrincipal;
-  if (typeof original === 'function') {
-    window.renderMenuPrincipal = function(){
-      original.apply(this, arguments);
-      try {
-        if (isAdmin()) {
-          const container = document.querySelector('#form-box > div > div');
-          if (container && !container.querySelector('#btn-admin-perf')) {
-            const btn = document.createElement('button');
-            btn.id = 'btn-admin-perf';
-            btn.className = 'auth-btn';
-            btn.style.fontSize = '20px';
-            btn.style.padding = '20px';
-            btn.textContent = '📊 Acompanhar Desempenho';
-            btn.onclick = () => renderAdminDesempenho();
-            const last = container.lastElementChild; // geralmente o botão "Sair"
-            if (last) container.insertBefore(btn, last); else container.appendChild(btn);
-          }
-        }
-      } catch {}
-    };
-  }
-})();
-
-/** Busca alunos na coleção "usuarios" por Nome + Cidade (prioriza cfcSlug ==, com fallback). */
-async function buscarAlunosPorCfc(cfcNome, cfcCidade) {
-  await ensureDb();
-  if (!db) return [];
-  const cfcSlug = buildCfcSlug(cfcNome, cfcCidade);
-  const out = [];
-
-  // Tentativa 1: cfcSlug ==
-  try {
-    const snap = await db.collection("usuarios").where("cfcSlug","==",cfcSlug).get();
-    snap.forEach(doc => out.push(_fmtUsuario(doc)));
-    if (out.length) return out;
-  } catch (e) {
-    console.warn("Falha na consulta por cfcSlug. Tentando fallback.", e);
-  }
-
-  // Fallback: nomeSlug == e filtra cidadeSlug no cliente
-  try {
-    const nomeSlug = slugify(toTitleCase(cfcNome));
-    const cidadeSlug = slugify(toTitleCase(cfcCidade));
-    const snap = await db.collection("usuarios").where("nomeSlug","==",nomeSlug).get();
-    snap.forEach(doc => {
-      const data = _fmtUsuario(doc);
-      if (data.cidadeSlug === cidadeSlug) out.push(data);
-    });
-  } catch (e) {
-    console.error("Erro no fallback buscarAlunosPorCfc:", e);
-  }
-  return out;
-}
-
-function _fmtUsuario(doc) {
-  const d = doc.data() || {};
-  let criadoEmFmt = "—";
-  try {
-    if (d.criadoEm?.toDate) criadoEmFmt = d.criadoEm.toDate().toLocaleString("pt-BR");
-    else if (d.atualizadoEm?.toDate) criadoEmFmt = d.atualizadoEm.toDate().toLocaleString("pt-BR");
-  } catch {}
-  return {
-    id: doc.id,
-    nome: d.nome || "",
-    email: normalizeEmail(d.email || ""),
-    plano: (d.plano || "free").toLowerCase(),
-    cfcNome: d.cfcNome || "",
-    cfcCidade: d.cfcCidade || "",
-    nomeSlug: d.nomeSlug || "",
-    cidadeSlug: d.cidadeSlug || "",
-    cfcSlug: d.cfcSlug || "",
-    criadoEmFmt
-  };
-}
-
-/** Exporta a lista atual em CSV. */
-function exportarCsvCfc(cfcNome, cfcCidade, alunos) {
-  const header = ["Nome","Email","Plano","CriadoEm"];
-  const rows = alunos.map(a => [
-    safeCsv(a.nome), safeCsv(a.email), safeCsv((a.plano||"free").toUpperCase()),
-    safeCsv(a.criadoEmFmt||"")
-  ].join(","));
-  const csv = [header.join(","), ...rows].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `alunos_${slugify(cfcNome)}__${slugify(cfcCidade)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(()=> URL.revokeObjectURL(url), 1500);
-}
-function safeCsv(v){ const s = String(v??""); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; }
-
-/** Exporta a lista atual em TXT (colunas alinhadas com largura fixa). */
-function exportarTxtCfc(cfcNome, cfcCidade, alunos) {
-  const headers = ["Nome","Email","Plano","Criado em"];
-  const dataRows = alunos.map(a => [
-    String(a.nome||""),
-    String(a.email||""),
-    String((a.plano||"free").toUpperCase()),
-    String(a.criadoEmFmt||"")
-  ]);
-
-  // calcula larguras
-  const widths = headers.map((h, i) => Math.max(
-    h.length,
-    ...dataRows.map(r => (r[i]||"").length)
-  ));
-
-  const pad = (text, w) => {
-    const s = String(text||"");
-    const diff = w - s.length;
-    return diff > 0 ? s + " ".repeat(diff) : s;
-  };
-
-  const sep = "  ";
-  const headerLine = headers.map((h,i)=> pad(h, widths[i])).join(sep);
-  const rulerLine  = widths.map(w => "-".repeat(w)).join(sep);
-  const bodyLines  = dataRows.map(r => r.map((c,i)=> pad(c, widths[i])).join(sep));
-
-  const txt = [headerLine, rulerLine, ...bodyLines].join("\n");
-  const blob = new Blob([txt], { type:"text/plain;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `alunos_${slugify(cfcNome)}__${slugify(cfcCidade)}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(()=> URL.revokeObjectURL(url), 1500);
-}
-
-/*************************************************
  * PEQUENA ANIMAÇÃO
  *************************************************/
 function animateCard() {
@@ -2290,25 +1723,28 @@ document.addEventListener("DOMContentLoaded", () => {
     pushRoute('intro', null, true);
   }
   try {
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        const s = JSON.parse(localStorage.getItem("usuarioLogado") || "{}");
-        const emailNorm = normalizeEmail(user.email);
-        window.currentUser = { email: emailNorm, nome: s.nome || "Aluno" };
-        renderMenuPrincipal();
-      }
-    });
+    if (auth && typeof auth.onAuthStateChanged === "function") {
+      auth.onAuthStateChanged((user) => {
+        if (user) {
+          const s = JSON.parse(localStorage.getItem("usuarioLogado") || "{}");
+          const emailNorm = normalizeEmail(user.email);
+          window.currentUser = { email: emailNorm, nome: s.nome || "Aluno" };
+          renderMenuPrincipal();
+        }
+      });
+    }
   } catch {}
 });
 
 /*************************************************
  * SERVICE WORKER
  *************************************************/
-if ("serviceWorker" in navigator) {
+if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("/service-worker.js").then(reg => {
     console.log("✅ Service Worker registrado:", reg);
     reg.onupdatefound = () => {
       const installingWorker = reg.installing;
+      if (!installingWorker) return;
       installingWorker.onstatechange = () => {
         if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
           console.log("🚀 Nova versão disponível! Atualizando...");

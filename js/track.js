@@ -1,44 +1,59 @@
 // Rastreio de desempenho nos simulados (carregado nas páginas de simulados)
-// Define window.salvarDesempenho(..) caso não exista e registra em Firestore
-// Estrutura: coleção 'desempenhos' com {email, prova, acertos, total, data, docId}
+// Define window.salvarDesempenho(..) caso não exista, usando apenas armazenamento local.
 
 (function(){
   if (window.salvarDesempenho) return; // não sobrescreve implementação existente
 
-  function norm(s){ return String(s||'').trim().toLowerCase(); }
-  function getEmail(){
-    try{ return norm(JSON.parse(localStorage.getItem('usuarioLogado')||'{}').email||''); }catch{return ''}
+  function normalize(str){ return String(str||'').trim().toLowerCase(); }
+  function readUsuarioLogado(){
+    try { return JSON.parse(localStorage.getItem('usuarioLogado') || '{}') || {}; }
+    catch { return {}; }
+  }
+  function resolveOwnerId(){
+    const user = readUsuarioLogado();
+    return user.uid || normalize(user.email) || 'anon';
+  }
+  function getStorageKey(ownerId){
+    const safe = normalize(ownerId).replace(/[^a-z0-9_-]/g, '_');
+    return `desempenho:${safe || 'anon'}`;
+  }
+  function fallbackSalvar(ownerId, registro){
+    try {
+      const key = getStorageKey(ownerId);
+      let lista = [];
+      try { lista = JSON.parse(localStorage.getItem(key) || '[]'); if (!Array.isArray(lista)) lista = []; } catch {}
+      const item = {
+        provaId: registro?.provaId || null,
+        provaNome: registro?.provaNome || registro?.prova || localStorage.getItem('provaAtual') || 'Simulado',
+        acertos: Number(registro?.acertos ?? 0),
+        total: typeof registro?.total === 'number' ? registro.total : null,
+        dataISO: registro?.dataISO || new Date().toISOString(),
+      };
+      if (!Number.isFinite(item.acertos)) item.acertos = 0;
+      lista.push(item);
+      localStorage.setItem(key, JSON.stringify(lista));
+    } catch (err) {
+      console.warn('[track] falha ao salvar desempenho local:', err);
+    }
+  }
+  function salvarLocal(ownerId, registro){
+    if (typeof window.salvarDesempenhoLocal === 'function') {
+      return window.salvarDesempenhoLocal(ownerId, registro);
+    }
+    return fallbackSalvar(ownerId, registro);
   }
 
-  async function ensureDb(){
-    try{ if (!window.firebase) return null; if (window.__db) return window.__db; window.__db = firebase.firestore ? firebase.firestore() : null; return window.__db; }catch{return null}
-  }
-
-  window.salvarDesempenho = async function(prova, acertos, totalQuestoes){
-    const email = getEmail();
-    const total = typeof totalQuestoes==='number' && totalQuestoes>0
-      ? totalQuestoes
-      : ((window.LEGMASTER_CONFIG && window.LEGMASTER_CONFIG.QUESTOES_TOTAL) || 30);
-    const data = new Date().toLocaleString('pt-BR');
-    // backup local
-    try{
-      const key='desempenho';
-      const store = JSON.parse(localStorage.getItem(key)||'{}');
-      const arr = store[email] || [];
-      arr.push({ prova, acertos, total, data });
-      store[email]=arr; localStorage.setItem(key, JSON.stringify(store));
-    }catch{}
-
-    // Firestore (se disponível)
-    try{
-      const db = await ensureDb(); if (!db || !email) return;
-      const docId = email.replace(/[.@]/g,'_');
-      const payload = { email, prova, acertos, total, data, docId };
-      await db.collection('desempenhos').add(payload);
-    }catch(e){ console.warn('[track] falha ao salvar desempenho:', e); }
+  window.salvarDesempenho = function(prova, acertos, totalQuestoes){
+    const ownerId = resolveOwnerId();
+    const total = typeof totalQuestoes === 'number' && totalQuestoes > 0 ? totalQuestoes : null;
+    salvarLocal(ownerId, {
+      provaNome: prova || localStorage.getItem('provaAtual') || 'Simulado',
+      acertos,
+      total,
+      dataISO: new Date().toISOString(),
+    });
   };
 
-  // aliases compatíveis
   window.registrarDesempenho = window.salvarDesempenho;
   window.registrarDesempenhoFimProva = function(acertos,total){
     const prova = localStorage.getItem('provaAtual') || 'Simulado';

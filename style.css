@@ -959,83 +959,6 @@ body[data-theme="dark"] .theme-toggle__icon::after {
   line-height: 1.45;
 }
 
-/* Admin - Desempenho (visual mais profissional) */
-.admin-header { text-align: left; margin-bottom: 8px; }
-.admin-title { color: var(--brand-600); font-weight: 900; font-size: 22px; letter-spacing: -0.01em; }
-.admin-sub { color: var(--text-secondary); font-size: 13.5px; }
-.admin-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 14px; align-items: center; }
-.admin-input, .admin-select {
-  background: rgba(14,25,20,0.72);
-  border: 1.5px solid rgba(67,160,71,0.38);
-  color: #f0faf5;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-}
-.admin-input { width: 260px; }
-.admin-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 8px 0 14px; }
-.admin-kpi {
-  background: linear-gradient(180deg, var(--surface), var(--surface-elevated));
-  border: 1px solid rgba(46, 125, 50, 0.12);
-  border-radius: 12px;
-  padding: 12px 14px;
-  box-shadow: 0 8px 24px rgba(14, 73, 37, 0.06);
-}
-.admin-kpi .kpi-label { color: var(--text-secondary); font-size: 12px; }
-.admin-kpi .kpi-value { color: var(--text-primary); font-size: 22px; font-weight: 900; letter-spacing: -0.01em; }
-.table-pro {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  background: rgba(10, 26, 17, 0.60) !important; /* evita branco/verde se misturar */
-  border: 1px solid rgba(46,125,50,0.32) !important;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 12px 30px rgba(14, 73, 37, 0.22);
-}
-.table-pro thead th {
-  position: sticky; top: 0; z-index: 1;
-  background: #173525 !important;
-  color: #f3fff7 !important;
-  text-align: left;
-  padding: 12px 14px;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  border-bottom: 1px solid rgba(46,125,50,0.38) !important;
-  border-right: 1px solid rgba(46,125,50,0.18) !important;
-}
-.table-pro thead th:last-child { border-right: none; }
-.table-pro tbody td {
-  padding: 12px 14px;
-  color: var(--text-primary) !important;
-  border-bottom: 1px solid rgba(46,125,50,0.14) !important;
-  border-right: 1px solid rgba(46,125,50,0.10) !important;
-  word-break: break-word; white-space: normal;
-}
-.table-pro tbody td:last-child { border-right: none; }
-.table-pro tbody tr:nth-child(odd) { background: rgba(255,255,255,0.03) !important; }
-.table-pro tbody tr:hover { background: rgba(46,125,50,0.12) !important; }
-.pill { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; }
-.pill.pro { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
-.pill.free { background: #fee2e2; color: #7f1d1d; border: 1px solid #fecaca; }
-.admin-actions { margin-left: auto; display: flex; gap: 8px; }
-
-/* Força contraste nos inputs/seletor com estilos inline do JS */
-.auth-card input.admin-input[style],
-.auth-card select.admin-select[style],
-.auth-card #adFilter[style],
-.auth-card #adm_busca[style],
-.auth-card #adm_email[style] {
-  background: rgba(14,25,20,0.72) !important;
-  color: #f0faf5 !important;
-  border-color: rgba(67,160,71,0.42) !important;
-}
-.auth-card .admin-input::placeholder,
-.auth-card #adFilter::placeholder,
-.auth-card #adm_busca::placeholder {
-  color: rgba(240,250,245,0.55) !important;
-}
-
 /* Cartões brancos gerados inline no admin-liberacoes */
 .auth-card [style*="background:#fff"],
 .auth-card [style*="background: #fff"],
@@ -1044,26 +967,6 @@ body[data-theme="dark"] .theme-toggle__icon::after {
   background: rgba(255,255,255,0.06) !important;
   color: var(--text-primary) !important;
   border-color: rgba(46,125,50,0.28) !important;
-}
-
-/* Links de email clicáveis nas tabelas do admin */
-.ad-email { color: #a7f0c2; text-decoration: none; font-weight: 700; }
-.ad-email:hover { text-decoration: underline; color: #d6ffe9; }
-
-/* Botões no admin em barra de ferramentas: um pouco menores e com ícone/texto sempre visíveis */
-.auth-card .admin-toolbar .auth-btn,
-.auth-card [id^="ad"] .auth-btn {
-  padding: 10px 14px;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-@media (max-width: 720px) {
-  .admin-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 480px) {
-  .admin-kpis { grid-template-columns: 1fr; }
-  .admin-input { width: 100%; }
 }
 
 /* Oculta o botão do tema no canto superior direito */
@@ -1117,29 +1020,3 @@ body[data-theme="dark"] .theme-toggle__icon::after {
   .table-desempenho { font-size: 16px; }
   .table-desempenho thead th, .table-desempenho td { padding: 14px 16px; }
 }
-.auth-card #adFilter {
-  width: 100% !important;
-  max-width: 900px;
-  padding: 14px 18px !important;
-  font-size: 16px !important;
-  border-radius: var(--radius-md) !important;
-}
-
-/* Admin Alunos por CFC — input padronizado (igual aos botões) */
-.auth-card #adm_busca {
-  width: 100% !important;
-  max-width: 900px;
-  padding: 14px 18px !important;
-  font-size: 16px !important;
-  border-radius: var(--radius-md) !important;
-}
-
-/* Força fundo escuro do container de resultados gerado inline */
-#adm_busca_result [style*="background:#fff"],
-#adm_busca_result [style*="background: #fff"],
-#adm_busca_result [style*="background:#ffffff"],
-#adm_busca_result [style*="background: #ffffff"] {
-  background: rgba(255,255,255,0.06) !important;
-  border-color: rgba(46,125,50,0.28) !important;
-}
-
