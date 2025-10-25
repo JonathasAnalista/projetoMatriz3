@@ -8,7 +8,7 @@
   }, global.CFC_HOST_PROFILES || {});
 
   const subdomainProfiles = Object.assign({
-    'sapucai': { nome: 'CFC Sapucai', cidade: 'Jacutinga - MG' },
+    'www.sapucai.aproveidetran.com.br': { nome: 'CFC Sapucai', cidade: 'Jacutinga - MG' },
   }, global.CFC_SUBDOMAIN_PROFILES || {});
 
   global.CFC_HOST_PROFILES = hostLevelProfiles;
